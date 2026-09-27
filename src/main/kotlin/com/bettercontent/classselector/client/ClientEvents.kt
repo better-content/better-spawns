@@ -23,18 +23,10 @@ object ClientModEvents {
         GLFW.GLFW_KEY_K,
         "key.categories.class_selector"
     )
-    val commitStartingSiteKey: KeyMapping = KeyMapping(
-        "key.class_selector.commit_start",
-        InputConstants.Type.KEYSYM,
-        GLFW.GLFW_KEY_C,
-        "key.categories.class_selector"
-    )
-
     @JvmStatic
     @SubscribeEvent
     fun registerKeys(event: RegisterKeyMappingsEvent) {
         event.register(openClassMenuKey)
-        event.register(commitStartingSiteKey)
     }
 }
 
@@ -62,20 +54,16 @@ object ClientForgeEvents {
             if (ClassSelectionState.noticeTicksRemaining == 0) ClassSelectionState.noticeText = null
         }
 
-        if (ClassSelectionState.activeInCurrentWorld && ClassSelectionState.selectionRequired &&
-            ClientModEvents.commitStartingSiteKey.consumeClick() && Screen.hasShiftDown()
-        ) {
-            when (ClassSelectionState.selectionMode) {
-                SelectionMode.NONE -> ClientOnboardingActions.submitSpawnOnly(mc)
-                SelectionMode.CLASS -> ClassSelectionState.lockedClassId?.let(ClientOnboardingActions::submitClassSelection)
-                SelectionMode.EMBARK_POINTS -> ClientOnboardingActions.submitEmbarkSelection(ClassSelectionState.selectedEmbarkPurchases())
-                SelectionMode.PROGRESSION -> Unit
-            }
-        }
-
         if (ClassSelectionState.activeInCurrentWorld && ClassSelectionState.selectionRequired && ClientModEvents.openClassMenuKey.consumeClick()) {
-            if (ClassSelectionState.selectionMode == SelectionMode.NONE) {
-                finalizeSpawnOnlySelection(mc)
+            if (Screen.hasShiftDown()) {
+                when (ClassSelectionState.selectionMode) {
+                    SelectionMode.NONE -> ClientOnboardingActions.submitSpawnOnly(mc)
+                    SelectionMode.CLASS -> ClassSelectionState.lockedClassId?.let(ClientOnboardingActions::submitClassSelection)
+                    SelectionMode.EMBARK_POINTS -> ClientOnboardingActions.submitEmbarkSelection(ClassSelectionState.selectedEmbarkPurchases())
+                    SelectionMode.PROGRESSION -> Unit
+                }
+            } else if (ClassSelectionState.selectionMode == SelectionMode.NONE) {
+                ClassSelectionState.showNotice("Press Shift+K here to set your spawn and begin.")
             } else if (ClassSelectionState.hasSelectionOptions()) {
                 openSelectionScreen(mc)
             } else {
@@ -131,10 +119,6 @@ object ClientForgeEvents {
             val color = if (index < instructionLines.size) INSTRUCTION_COLOR else 0xD58A8A
             event.guiGraphics.drawString(font, line, x, y + index * 10, color)
         }
-    }
-
-    private fun finalizeSpawnOnlySelection(mc: Minecraft) {
-        ClientOnboardingActions.submitSpawnOnly(mc)
     }
 
     private fun openSelectionScreen(mc: Minecraft) {

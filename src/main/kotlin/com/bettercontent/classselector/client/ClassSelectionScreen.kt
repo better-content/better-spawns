@@ -217,7 +217,7 @@ class ClassSelectionScreen(private val kits: List<ClassKit>) : Screen(Component.
         y += 12
         y += renderWrappedBlock(
             gui,
-            Component.literal("1. Choose and lock a class. 2. Scout in spectator, reopen with your Class Selector key, and lock your current respawn. 3. Press Begin twice to confirm."),
+            Component.literal("1. Choose and lock a class. 2. Scout in spectator, reopen with K, and lock your respawn. 3. Press Begin once or Shift+K to confirm."),
             innerX,
             y,
             innerWidth,

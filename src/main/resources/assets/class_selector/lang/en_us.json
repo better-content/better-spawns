@@ -3,11 +3,11 @@
   "key.class_selector.commit_start": "Commit Starting Site",
   "key.categories.class_selector": "Class Selector",
   "message.class_selector.spawn_step_1": "Explore as a spectator and choose your starting spot.",
-  "message.class_selector.spawn_step_2": "Press %s twice to set your spawn and begin.",
+  "message.class_selector.spawn_step_2": "Press Shift+K to set your spawn and begin.",
   "message.class_selector.class_step_1": "Press %s to choose and lock a class.",
   "message.class_selector.class_step_2": "Scout as a spectator, then press %s and lock your current spot as respawn.",
-  "message.class_selector.class_step_3": "Press Begin twice to confirm your class and respawn point.",
+  "message.class_selector.class_step_3": "Press Begin or Shift+K to confirm your class and respawn point.",
   "message.class_selector.embark_step_1": "Press %s to choose your starting supplies.",
   "message.class_selector.embark_step_2": "Scout as a spectator, then press %s and lock your current spot as respawn.",
-  "message.class_selector.embark_step_3": "Press Begin twice to confirm your supplies and respawn point."
+  "message.class_selector.embark_step_3": "Press Begin or Shift+K to confirm your supplies and respawn point."
 }

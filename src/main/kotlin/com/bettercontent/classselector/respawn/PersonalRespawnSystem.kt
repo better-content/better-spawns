@@ -34,8 +34,6 @@ private const val SOUND_PITCH_BELL = 0.75
 private const val SOUND_PITCH_PORTAL = 0.9
 private const val SOUND_PITCH_WARDEN = 0.8
 private const val SOUND_PITCH_EVOKER = 0.9
-private const val RESPAWN_SNAP_RADIUS = 16
-private const val RESPAWN_VERTICAL_WEIGHT = 3
 private const val RESPAWN_REPEL_RADIUS = 64.0
 private val RESPAWN_PROTECTION_DELAYS_TICKS = longArrayOf(1L, 3L, 7L)
 const val RESPAWN_PURGE_TAG = "class_selector:respawn_purge"
@@ -47,6 +45,7 @@ data class PersonalRespawnPoint(val dim: String, val x: Int, val y: Int, val z: 
 data class PreparedRespawnPoint(val point: PersonalRespawnPoint, val sitePrepared: Boolean, val locationAdjusted: Boolean)
 
 object PersonalRespawnService {
+    private const val RESELECT_SPAWN_TAG = "class_selector:reselect_spawn"
     private const val RESPAWN_DIM_TAG = "class_selector:respawn_dim"
     private const val RESPAWN_X_TAG = "class_selector:respawn_x"
     private const val RESPAWN_Y_TAG = "class_selector:respawn_y"
@@ -101,7 +100,7 @@ object PersonalRespawnService {
         val level = resolveLevel(player.server, approved.point.dim)
             ?: error("Approved respawn dimension disappeared before commit")
         val feet = BlockPos(approved.point.x, approved.point.y, approved.point.z)
-        check(isValidFeetPos(level, feet)) { "Approved respawn site became unsafe before commit" }
+        check(hasStableBase(level, feet)) { "Approved respawn site lost its supporting block before commit" }
         val prepared = approved.copy(sitePrepared = prepareRespawnSite(level, feet))
         saveRespawnPoint(player, prepared.point)
         return prepared
@@ -113,6 +112,24 @@ object PersonalRespawnService {
         player.persistentData.remove(RESPAWN_Y_TAG)
         player.persistentData.remove(RESPAWN_Z_TAG)
         clearVanillaRespawnPosition(player)
+    }
+
+    fun isReselectingSpawn(player: ServerPlayer): Boolean = player.persistentData.getBoolean(RESELECT_SPAWN_TAG)
+
+    fun beginSpawnReselection(player: ServerPlayer) {
+        clearRespawnPoint(player)
+        player.persistentData.putBoolean(RESELECT_SPAWN_TAG, true)
+        player.setGameMode(GameType.SPECTATOR)
+        val overworld = player.server.overworld()
+        val spawn = overworld.sharedSpawnPos
+        player.teleportTo(overworld, spawn.x + 0.5, spawn.y + 1.0, spawn.z + 0.5, player.yRot, player.xRot)
+    }
+
+    fun completeSpawnReselection(player: ServerPlayer, approved: PreparedRespawnPoint): PreparedRespawnPoint {
+        check(isReselectingSpawn(player)) { "Player is not selecting a new spawn" }
+        val committed = commitPreparedRespawnPoint(player, approved)
+        player.persistentData.remove(RESELECT_SPAWN_TAG)
+        return committed
     }
 
     fun releasePlayerFromSpectator(player: ServerPlayer): Boolean {
@@ -170,7 +187,8 @@ object PersonalRespawnService {
     internal fun prepareRespawnPoint(server: MinecraftServer, requestedPoint: PersonalRespawnPoint): PreparedRespawnPoint {
         val level = resolveLevel(server, requestedPoint.dim)
             ?: return PreparedRespawnPoint(requestedPoint, sitePrepared = false, locationAdjusted = false)
-        val point = resolveRespawnPoint(level, requestedPoint) ?: requestedPoint
+        val point = resolveRespawnPoint(level, requestedPoint)
+            ?: error("No solid block below the requested respawn site")
         val targetFeetPos = BlockPos(point.x, point.y, point.z)
         val sitePrepared = prepareRespawnSite(level, targetFeetPos)
 
@@ -183,7 +201,7 @@ object PersonalRespawnService {
 
     private fun resolveRespawnPoint(level: ServerLevel, requestedPoint: PersonalRespawnPoint): PersonalRespawnPoint? {
         val origin = clampFeetPos(level, BlockPos(requestedPoint.x, requestedPoint.y, requestedPoint.z))
-        val target = if (isValidFeetPos(level, origin)) origin else findNearestValidFeetPos(level, origin) ?: return null
+        val target = findFirstSolidFeetPos(level, origin) ?: return null
         return PersonalRespawnPoint(dimensionId(level), target.x, target.y, target.z)
     }
 
@@ -207,65 +225,17 @@ object PersonalRespawnService {
             headState.isAir
     }
 
-    private fun findNearestValidFeetPos(level: ServerLevel, origin: BlockPos): BlockPos? {
-        var best: BlockPos? = null
-        var bestScore = Int.MAX_VALUE
-        var bestVerticalDelta = Int.MAX_VALUE
-        var bestDistance = Int.MAX_VALUE
-
-        for (dx in -RESPAWN_SNAP_RADIUS..RESPAWN_SNAP_RADIUS) {
-            for (dy in -RESPAWN_SNAP_RADIUS..RESPAWN_SNAP_RADIUS) {
-                for (dz in -RESPAWN_SNAP_RADIUS..RESPAWN_SNAP_RADIUS) {
-                    if (dx == 0 && dy == 0 && dz == 0) continue
-
-                    val candidate = BlockPos(origin.x + dx, origin.y + dy, origin.z + dz)
-                    if (!isValidFeetPos(level, candidate)) continue
-
-                    val horizontalDistance = abs(dx) + abs(dz)
-                    val weightedScore = (abs(dy) * RESPAWN_VERTICAL_WEIGHT) + horizontalDistance
-                    val distance = dx * dx + dy * dy + dz * dz
-                    val verticalDelta = abs(dy)
-                    if (
-                        best == null ||
-                        weightedScore < bestScore ||
-                        (weightedScore == bestScore && verticalDelta < bestVerticalDelta) ||
-                        (weightedScore == bestScore && verticalDelta == bestVerticalDelta && distance < bestDistance) ||
-                        (weightedScore == bestScore && verticalDelta == bestVerticalDelta && distance == bestDistance && compareCandidate(candidate, best) < 0)
-                    ) {
-                        best = candidate
-                        bestScore = weightedScore
-                        bestDistance = distance
-                        bestVerticalDelta = verticalDelta
-                    }
-                }
-            }
-        }
-
-        return best ?: findNearestValidFeetPosInColumn(level, origin)
+    private fun hasStableBase(level: ServerLevel, feetPos: BlockPos): Boolean {
+        val basePos = feetPos.below()
+        return level.isInWorldBounds(basePos) && level.getBlockState(basePos).isFaceSturdy(level, basePos, Direction.UP)
     }
 
-    private fun findNearestValidFeetPosInColumn(level: ServerLevel, origin: BlockPos): BlockPos? {
-        var best: BlockPos? = null
-        var bestVerticalDelta = Int.MAX_VALUE
-
-        for (y in (level.minBuildHeight + 1)..(level.maxBuildHeight - 2)) {
-            val candidate = BlockPos(origin.x, y, origin.z)
-            if (!isValidFeetPos(level, candidate)) continue
-
-            val verticalDelta = abs(y - origin.y)
-            if (best == null || verticalDelta < bestVerticalDelta) {
-                best = candidate
-                bestVerticalDelta = verticalDelta
-            }
+    private fun findFirstSolidFeetPos(level: ServerLevel, origin: BlockPos): BlockPos? {
+        for (baseY in origin.y.coerceAtMost(level.maxBuildHeight - 3) downTo level.minBuildHeight) {
+            val feet = BlockPos(origin.x, baseY + 1, origin.z)
+            if (hasStableBase(level, feet)) return feet
         }
-
-        return best
-    }
-
-    private fun compareCandidate(left: BlockPos, right: BlockPos): Int {
-        if (left.y != right.y) return left.y.compareTo(right.y)
-        if (left.x != right.x) return left.x.compareTo(right.x)
-        return left.z.compareTo(right.z)
+        return null
     }
 
     private fun prepareRespawnSite(level: ServerLevel, feetPos: BlockPos): Boolean {

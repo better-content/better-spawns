@@ -52,7 +52,7 @@ class SyncClassesPacket(
                 val nextMode = runCatching { SelectionMode.parse(packet.selectionMode) }
                     .getOrDefault(SelectionMode.NONE)
                 ClassSelectionState.activeInCurrentWorld = packet.activeInCurrentWorld
-                ClassSelectionState.selectionMode = nextMode
+                ClassSelectionState.selectionMode = if (ClassSelectionState.reselectingSpawn) SelectionMode.NONE else nextMode
                 ClassSelectionState.pointQuota = packet.pointQuota
                 ClassSelectionState.kits = runCatching {
                     gson.fromJson(packet.kitsJsonPayload, Array<ClassKit>::class.java)?.toList() ?: emptyList()

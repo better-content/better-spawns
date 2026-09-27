@@ -21,9 +21,9 @@ object ClassSelectionState {
     var pointQuota: Int = 0
     var promptOpen: Boolean = false
     var selectionRequired: Boolean = false
+    var reselectingSpawn: Boolean = false
     var lockedClassId: String? = null
     var lockedRespawn: PendingRespawnSelection? = null
-    var commitConfirmationArmed: Boolean = false
     var noticeText: String? = null
     var noticeTicksRemaining: Int = 0
     val embarkPurchases: MutableMap<String, Int> = linkedMapOf()
@@ -32,7 +32,6 @@ object ClassSelectionState {
         lockedClassId = null
         lockedRespawn = null
         embarkPurchases.clear()
-        commitConfirmationArmed = false
     }
 
     fun showNotice(message: String) {
@@ -139,6 +138,7 @@ object ClassSelectionState {
         pointQuota = 0
         promptOpen = false
         selectionRequired = false
+        reselectingSpawn = false
         noticeText = null
         noticeTicksRemaining = 0
         clearPendingLocks()

@@ -296,7 +296,7 @@ class EmbarkSelectionScreen(
         y += 12
         y += renderWrappedBlock(
             gui,
-            Component.literal("1. Pick supplies. 2. Scout in spectator, reopen, and lock respawn. 3. Press Begin twice to confirm."),
+            Component.literal("1. Pick supplies. 2. Scout in spectator, reopen with K, and lock respawn. 3. Press Begin once or Shift+K to confirm."),
             innerX,
             y,
             innerWidth,

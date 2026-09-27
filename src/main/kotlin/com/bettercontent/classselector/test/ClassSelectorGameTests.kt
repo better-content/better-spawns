@@ -101,26 +101,18 @@ object ClassSelectorGameTests {
 
     @JvmStatic
     @GameTest(template = "empty")
-    fun invalidRespawnSelectionSnapsToNearestValidSite(helper: GameTestHelper) {
-        val requestedFeetPos = BlockPos(1, 2, 1)
-        val nearestValidFeetPos = BlockPos(2, 2, 1)
-        val fartherValidFeetPos = BlockPos(4, 2, 1)
-
-        helper.setBlock(requestedFeetPos.below(), Blocks.AIR)
-        helper.setBlock(requestedFeetPos, Blocks.STONE)
-        helper.setBlock(requestedFeetPos.above(), Blocks.STONE)
-
-        helper.setBlock(nearestValidFeetPos.below(), Blocks.STONE)
-        helper.setBlock(nearestValidFeetPos, Blocks.AIR)
-        helper.setBlock(nearestValidFeetPos.above(), Blocks.AIR)
-
-        helper.setBlock(fartherValidFeetPos.below(), Blocks.STONE)
-        helper.setBlock(fartherValidFeetPos, Blocks.AIR)
-        helper.setBlock(fartherValidFeetPos.above(), Blocks.AIR)
+    fun flyingRespawnSelectionUsesFirstSolidBlockStraightBelow(helper: GameTestHelper) {
+        val requestedFeetPos = BlockPos(1, 6, 1)
+        val targetFeetPos = BlockPos(1, 2, 1)
+        val sideFeetPos = BlockPos(2, 5, 1)
+        for (y in 2..7) helper.setBlock(BlockPos(1, y, 1), Blocks.AIR)
+        helper.setBlock(targetFeetPos.below(), Blocks.STONE)
+        helper.setBlock(sideFeetPos.below(), Blocks.STONE)
+        helper.setBlock(sideFeetPos, Blocks.AIR)
+        helper.setBlock(sideFeetPos.above(), Blocks.AIR)
 
         val requestedFeetAbs = helper.absolutePos(requestedFeetPos)
-        val nearestValidFeetAbs = helper.absolutePos(nearestValidFeetPos)
-        val fartherValidFeetAbs = helper.absolutePos(fartherValidFeetPos)
+        val targetFeetAbs = helper.absolutePos(targetFeetPos)
 
         val prepared = PersonalRespawnService.prepareRespawnPoint(
             helper.level.server,
@@ -132,31 +124,31 @@ object ClassSelectorGameTests {
             )
         )
 
-        helper.assertTrue(prepared.locationAdjusted, "Expected invalid selection to snap to a nearby valid respawn site")
-        helper.assertTrue(prepared.sitePrepared, "Expected snapped respawn site to be prepared with crying obsidian")
+        helper.assertTrue(prepared.locationAdjusted, "Expected flying selection to descend to terrain")
+        helper.assertTrue(prepared.sitePrepared, "Expected the terrain block to be replaced with crying obsidian")
         helper.assertTrue(
             prepared.point == PersonalRespawnPoint(
                 dim = helper.level.dimension().location().toString(),
-                x = nearestValidFeetAbs.x,
-                y = nearestValidFeetAbs.y,
-                z = nearestValidFeetAbs.z
+                x = targetFeetAbs.x,
+                y = targetFeetAbs.y,
+                z = targetFeetAbs.z
             ),
-            "Expected respawn point to snap to nearest valid site, found ${prepared.point}"
+            "Expected respawn point directly below the player, found ${prepared.point}"
         )
-        helper.assertBlockPresent(Blocks.CRYING_OBSIDIAN, nearestValidFeetPos.below())
-        helper.assertBlockPresent(Blocks.AIR, nearestValidFeetPos)
-        helper.assertBlockPresent(Blocks.AIR, nearestValidFeetPos.above())
-        helper.assertBlockPresent(Blocks.STONE, fartherValidFeetPos.below())
+        helper.assertBlockPresent(Blocks.CRYING_OBSIDIAN, targetFeetPos.below())
+        helper.assertBlockPresent(Blocks.AIR, targetFeetPos)
+        helper.assertBlockPresent(Blocks.AIR, targetFeetPos.above())
+        helper.assertBlockPresent(Blocks.STONE, sideFeetPos.below())
 
         helper.succeed()
     }
 
     @JvmStatic
     @GameTest(template = "empty")
-    fun respawnSnapPrefersThreeHorizontalOverOneVertical(helper: GameTestHelper) {
-        val requestedFeetPos = BlockPos(3, 4, 3)
-        val verticalCandidate = BlockPos(3, 5, 3)
-        val horizontalCandidate = BlockPos(5, 4, 3)
+    fun respawnSelectionUsesFirstSolidBlockInColumn(helper: GameTestHelper) {
+        val requestedFeetPos = BlockPos(3, 7, 3)
+        val firstFeetPos = BlockPos(3, 5, 3)
+        val lowerFeetPos = BlockPos(3, 2, 3)
 
         for (x in 0..7) {
             for (y in 0..7) {
@@ -166,19 +158,11 @@ object ClassSelectorGameTests {
             }
         }
 
-        helper.setBlock(requestedFeetPos, Blocks.STONE)
-        helper.setBlock(requestedFeetPos.above(), Blocks.STONE)
-
-        helper.setBlock(verticalCandidate.below(), Blocks.STONE)
-        helper.setBlock(verticalCandidate, Blocks.AIR)
-        helper.setBlock(verticalCandidate.above(), Blocks.AIR)
-
-        helper.setBlock(horizontalCandidate.below(), Blocks.STONE)
-        helper.setBlock(horizontalCandidate, Blocks.AIR)
-        helper.setBlock(horizontalCandidate.above(), Blocks.AIR)
+        helper.setBlock(firstFeetPos.below(), Blocks.STONE)
+        helper.setBlock(lowerFeetPos.below(), Blocks.STONE)
 
         val requestedFeetAbs = helper.absolutePos(requestedFeetPos)
-        val horizontalCandidateAbs = helper.absolutePos(horizontalCandidate)
+        val firstFeetAbs = helper.absolutePos(firstFeetPos)
 
         val prepared = PersonalRespawnService.prepareRespawnPoint(
             helper.level.server,
@@ -193,14 +177,14 @@ object ClassSelectorGameTests {
         helper.assertTrue(
             prepared.point == PersonalRespawnPoint(
                 dim = helper.level.dimension().location().toString(),
-                x = horizontalCandidateAbs.x,
-                y = horizontalCandidateAbs.y,
-                z = horizontalCandidateAbs.z
+                x = firstFeetAbs.x,
+                y = firstFeetAbs.y,
+                z = firstFeetAbs.z
             ),
-            "Expected horizontal candidate to beat vertical candidate with 3:1 vertical weighting, found ${prepared.point}"
+            "Expected first solid block in the player's column, found ${prepared.point}"
         )
-        helper.assertBlockPresent(Blocks.CRYING_OBSIDIAN, horizontalCandidate.below())
-        helper.assertBlockPresent(Blocks.STONE, verticalCandidate.below())
+        helper.assertBlockPresent(Blocks.CRYING_OBSIDIAN, firstFeetPos.below())
+        helper.assertBlockPresent(Blocks.STONE, lowerFeetPos.below())
 
         helper.succeed()
     }

@@ -117,6 +117,29 @@ class FinalizeSelectionPacket(
             ctx.enqueueWork {
                 val player = ctx.sender ?: return@enqueueWork
                 if (!ClassSelectorScope.isActiveIn(player.server)) return@enqueueWork
+                if (PersonalRespawnService.isReselectingSpawn(player)) {
+                    if (!OnboardingIntegration.hasCompletedOnboarding(player) || !player.isSpectator ||
+                        ResourceLocation.tryParse(packet.dimensionId) == null
+                    ) {
+                        reject(player, "Spawn reselection is not available right now.")
+                        return@enqueueWork
+                    }
+                    val approved = PersonalRespawnService.validateOnboardingRespawnPoint(
+                        player, PersonalRespawnPoint(packet.dimensionId, packet.x, packet.y, packet.z)
+                    ) ?: run {
+                        reject(player, "Choose a solid block directly below your current position.")
+                        return@enqueueWork
+                    }
+                    val committed = runCatching { PersonalRespawnService.completeSpawnReselection(player, approved) }
+                        .getOrElse { error ->
+                            reject(player, error.message ?: "The selected spawn is no longer safe.")
+                            return@enqueueWork
+                        }
+                    OnboardingIntegration.recordStartingSite(player, OnboardingIntegration.buildSpawnId(committed.point))
+                    PersonalRespawnService.releasePlayerFromSpectator(player)
+                    OnboardingVisibilitySync.sync(player.server)
+                    return@enqueueWork
+                }
                 if (OnboardingIntegration.hasCompletedOnboarding(player)) return@enqueueWork
 
                 val selectionData = SelectionDataRepository.getOrLoad()

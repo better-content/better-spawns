@@ -19,7 +19,6 @@ object ClientOnboardingActions {
 
     fun submitSpawnOnly(mc: Minecraft): Boolean {
         val player = mc.player ?: return false
-        if (!confirmCommit()) return false
         markSelectionSubmitted()
         ClassSelectorNetwork.CHANNEL.sendToServer(
             FinalizeSelectionPacket.spawnOnly(
@@ -35,7 +34,6 @@ object ClientOnboardingActions {
     fun submitClassSelection(classId: String): Boolean {
         val respawn = ClassSelectionState.lockedRespawn ?: return false
         if (Minecraft.getInstance().player == null) return false
-        if (!confirmCommit()) return false
         markSelectionSubmitted()
         ClassSelectorNetwork.CHANNEL.sendToServer(
             FinalizeSelectionPacket.classSelection(classId, respawn.dim, respawn.x, respawn.y, respawn.z)
@@ -47,7 +45,6 @@ object ClientOnboardingActions {
         val respawn = ClassSelectionState.lockedRespawn ?: return false
         if (purchases.isEmpty()) return false
         if (Minecraft.getInstance().player == null) return false
-        if (!confirmCommit()) return false
         markSelectionSubmitted()
         ClassSelectorNetwork.CHANNEL.sendToServer(
             FinalizeSelectionPacket.embarkSelection(purchases, respawn.dim, respawn.x, respawn.y, respawn.z)
@@ -62,9 +59,4 @@ object ClientOnboardingActions {
         ClassSelectionState.noticeTicksRemaining = 0
     }
 
-    private fun confirmCommit(): Boolean {
-        if (ClassSelectionState.commitConfirmationArmed) return true
-        ClassSelectionState.commitConfirmationArmed = true
-        return false
-    }
 }

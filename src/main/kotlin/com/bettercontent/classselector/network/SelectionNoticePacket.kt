@@ -19,7 +19,6 @@ class SelectionNoticePacket(private val message: String, private val retrySelect
             ctx.enqueueWork {
                 if (packet.retrySelection) {
                     ClassSelectionState.selectionRequired = true
-                    ClassSelectionState.commitConfirmationArmed = false
                 }
                 ClassSelectionState.showNotice(packet.message)
             }

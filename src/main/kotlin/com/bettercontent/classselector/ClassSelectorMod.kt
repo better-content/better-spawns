@@ -82,7 +82,12 @@ object ServerEvents {
             return
         }
 
-        PersonalRespawnService.releasePlayerFromSpectator(player)
+        if (PersonalRespawnService.isReselectingSpawn(player)) {
+            player.setGameMode(GameType.SPECTATOR)
+            ClassSelectorNetwork.CHANNEL.send(PacketDistributor.PLAYER.with { player }, RequestOpenMenuPacket(true))
+        } else {
+            PersonalRespawnService.releasePlayerFromSpectator(player)
+        }
     }
 
     @JvmStatic

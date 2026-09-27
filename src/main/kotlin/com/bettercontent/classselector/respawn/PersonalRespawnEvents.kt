@@ -99,10 +99,14 @@ object PersonalRespawnEvents {
                                 .executes { ctx ->
                                     val targets = EntityArgument.getPlayers(ctx, "targets")
                                     targets.forEach { player ->
-                                        PersonalRespawnService.clearRespawnPoint(player)
+                                        PersonalRespawnService.beginSpawnReselection(player)
                                         ClassSelectorNetwork.CHANNEL.send(
                                             PacketDistributor.PLAYER.with { player },
-                                            SelectionNoticePacket("Your permanent respawn point was cleared by an admin.", false)
+                                            RequestOpenMenuPacket(true)
+                                        )
+                                        ClassSelectorNetwork.CHANNEL.send(
+                                            PacketDistributor.PLAYER.with { player },
+                                            SelectionNoticePacket("Scout in spectator, then press Shift+K to set your new spawn.", false)
                                         )
                                     }
                                     Command.SINGLE_SUCCESS
