@@ -32,7 +32,7 @@ jobs:
         run: >-
           python3 build/ci-pack-baseline/.github/scripts/prepare-provider-jars.py
           --pack-root build/ci-pack-baseline
-          --repository class-selector
+          --repository better-spawns
           --output "$BC_CUSTOM_MOD_JAR_DIR"
       - uses: actions/setup-java@v4
         with:

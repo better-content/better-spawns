@@ -1,0 +1,13 @@
+{
+  "key.better_spawns.open_menu": "Open Better Spawns",
+  "key.better_spawns.commit_start": "Commit Starting Site",
+  "key.categories.better_spawns": "Better Spawns",
+  "message.better_spawns.spawn_step_1": "Explore as a spectator and choose your starting spot.",
+  "message.better_spawns.spawn_step_2": "Press Shift+K to set your spawn and begin.",
+  "message.better_spawns.class_step_1": "Press %s to choose and lock a class.",
+  "message.better_spawns.class_step_2": "Scout as a spectator, then press %s and lock your current spot as respawn.",
+  "message.better_spawns.class_step_3": "Press Begin or Shift+K to confirm your class and respawn point.",
+  "message.better_spawns.embark_step_1": "Press %s to choose your starting supplies.",
+  "message.better_spawns.embark_step_2": "Scout as a spectator, then press %s and lock your current spot as respawn.",
+  "message.better_spawns.embark_step_3": "Press Begin or Shift+K to confirm your supplies and respawn point."
+}

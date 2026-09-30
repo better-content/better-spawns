@@ -14,8 +14,8 @@ plugins {
 }
 
 mixin {
-    add(sourceSets.main.get(), "class_selector.refmap.json")
-    config("class_selector.mixins.json")
+    add(sourceSets.main.get(), "better_spawns.refmap.json")
+    config("better_spawns.mixins.json")
 }
 
 group = "com.bettercontent"
@@ -90,7 +90,7 @@ dependencies {
     implementation("thedarkcolour:kotlinforforge:${property("kotlinforforge_version")}")
     compileOnly(fg.deobf(curiosApiNotation))
     runtimeOnly(fg.deobf("top.theillusivec4.curios:curios-forge:${property("curios_version")}"))
-    compileOnly(files(betterContentJar("world-lifecycle-manager", "world-lifecycle-manager-0.1.0.jar")))
+    compileOnly(files(betterContentJar("better-world-management", "better-world-management-0.1.0.jar")))
     runtimeOnly(deobf("com.simibubi.create:create-${property("minecraft_version")}:${property("create_version")}:slim"))
     runtimeOnly(deobf("net.createmod.ponder:Ponder-Forge-${property("minecraft_version")}:${property("ponder_version")}"))
     runtimeOnly(deobf("dev.engine-room.flywheel:flywheel-forge-${property("minecraft_version")}:${property("flywheel_version")}"))

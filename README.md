@@ -1,4 +1,4 @@
-# Class Selector (Forge 1.20.1, Kotlin)
+# Better Spawns (Forge 1.20.1, Kotlin)
 
 A Forge mod that forces new players to pick a class before starting:
 - On first join, player is put into spectator mode.
@@ -7,13 +7,13 @@ A Forge mod that forces new players to pick a class before starting:
 - Players lock a class and lock a respawn point separately, then press `Begin`.
 - Beginning play and later respawns use the player's locked respawn point.
 - Daylight pauses while every connected player is spectating and resumes when any player enters another game mode.
-- Kits are JSON-defined in `config/class_selector/kits.json`.
-- Alternatively, `config/class_selector/embark.json` can switch onboarding to an embark-style point-buy item pool.
+- Kits are JSON-defined in `config/better_spawns/kits.json`.
+- Alternatively, `config/better_spawns/embark.json` can switch onboarding to an embark-style point-buy item pool.
 - Respawning returns the player to that saved starting location with the scripted sound and particle FX.
 
 ## Admin commands
 
-- `/class_selector resetrespawn <targets>` clears stored permanent respawn points for online players.
+- `/better_spawns resetrespawn <targets>` clears stored permanent respawn points for online players.
 
 ## Kit slot targeting
 
@@ -27,7 +27,7 @@ If a requested slot is missing or full, the item falls back to player inventory.
 
 ## Embark point-buy mode
 
-`config/class_selector/embark.json` controls the selection mode:
+`config/better_spawns/embark.json` controls the selection mode:
 - `"mode": "class"` keeps the existing fixed class selector.
 - `"mode": "embark_points"` replaces classes with a point-buy supply screen.
 - `"pointQuota"` sets how many points each player can spend.
@@ -50,14 +50,14 @@ Curios is required and loaded as a Forge dependency.
 
 ## Release install
 
-Use the jar produced at `build/libs/class-selector-<version>.jar`.
+Use the jar produced at `build/libs/better-spawns-<version>.jar`.
 
-- Server: install Class Selector, Kotlin for Forge, and Curios in the server `mods/` folder.
+- Server: install Better Spawns, Kotlin for Forge, and Curios in the server `mods/` folder.
 - Client: install the same mod set and matching Forge `47.4.x` on Minecraft `1.20.1`.
 
 Project URLs:
-- Repository: `https://github.com/better-content/class-selector`
-- Issue tracker: `https://github.com/better-content/class-selector/issues`
+- Repository: `https://github.com/better-content/better-spawns`
+- Issue tracker: `https://github.com/better-content/better-spawns/issues`
 
 ## Test commands
 
@@ -84,9 +84,9 @@ For modpack and mod discussion, playtest feedback, and bug reports, join the [Be
 
 ## Canonical identity
 
-- Repository and Gradle project: `class-selector`
-- Mod ID and resource namespace: `class_selector`
+- Repository and Gradle project: `better-spawns`
+- Mod ID and resource namespace: `better_spawns`
 - Maven group: `com.bettercontent`
-- Runtime artifact: `build/libs/class-selector-<version>.jar`
+- Runtime artifact: `build/libs/better-spawns-<version>.jar`
 
 The canonical identity is a clean break. Legacy mod IDs, resource namespaces, configuration paths, commands, network channels, and saved-data keys are not migrated or aliased.

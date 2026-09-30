@@ -8,7 +8,7 @@
 
 ## 1.0.0 - 2026-04-07
 
-- Initial public release of Class Selector for Forge 1.20.1.
+- Initial public release of Better Spawns for Forge 1.20.1.
 - Added forced first-join class selection with spectator gating.
 - Added JSON-defined class kits with targeted item slot placement.
 - Added Curios-backed `curio:<identifier>` slot support with inventory fallback.

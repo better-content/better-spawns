@@ -16,4 +16,4 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "class-selector"
+rootProject.name = "better-spawns"

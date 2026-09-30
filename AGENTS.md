@@ -2,10 +2,10 @@
 
 ## Scope
 
-This repository contains the Better Content-owned Forge mod **Class Selector**.
+This repository contains the Better Content-owned Forge mod **Better Spawns**.
 
-- Canonical mod ID: `class_selector`
-- Canonical artifact: `class-selector-<version>.jar`
+- Canonical mod ID: `better_spawns`
+- Canonical artifact: `better-spawns-<version>.jar`
 - Maven group: `com.bettercontent`
 - Java runtime: 17
 - Minecraft/Forge baseline: 1.20.1 / 47.4.13

@@ -6,15 +6,15 @@ license="AGPL-3.0-or-later"
 modId="${mod_id}"
 version="${mod_version}"
 displayName="${mod_name}"
-displayURL="https://github.com/better-content/class-selector"
-issueTrackerURL="https://github.com/better-content/class-selector/issues"
+displayURL="https://github.com/better-content/better-spawns"
+issueTrackerURL="https://github.com/better-content/better-spawns/issues"
 authors="Gerald Summers"
 description='''
 Class selection mod with JSON-defined starter kits, spectator gating for new players, and per-player permanent respawn selection.
 '''
 
 [[mixins]]
-    config="class_selector.mixins.json"
+    config="better_spawns.mixins.json"
 
 [[dependencies.${mod_id}]]
     modId="forge"
@@ -45,7 +45,7 @@ Class selection mod with JSON-defined starter kits, spectator gating for new pla
     side="BOTH"
 
 [[dependencies.${mod_id}]]
-    modId="world_lifecycle_manager"
+    modId="better_world_management"
     mandatory=false
     versionRange="[0.1.0,0.2)"
     ordering="AFTER"
