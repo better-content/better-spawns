@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: better-content/better-content-modpack
-          ref: 7daccf81465d0803824831f014d695419c6e7696
+          ref: 3f542aa430841fb5ce68e9ae9bc4d011fe5011cd
           path: build/ci-pack-baseline
           sparse-checkout: |
             .github/scripts

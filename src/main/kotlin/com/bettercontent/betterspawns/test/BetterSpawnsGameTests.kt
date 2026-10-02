@@ -25,7 +25,7 @@ import net.minecraftforge.registries.ForgeRegistries
 import java.util.UUID
 
 @GameTestHolder(ClassSelectorMod.MOD_ID)
-object ClassSelectorGameTests {
+object BetterSpawnsGameTests {
     private fun testPlayer(helper: GameTestHelper): ServerPlayer = ServerPlayer(
         helper.level.server,
         helper.level,
