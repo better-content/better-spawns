@@ -71,8 +71,28 @@ object SpawnPreviewRenderer {
             pose, fill,
             target.x + 0.005, target.y + 0.005, target.z + 0.005,
             target.x + 0.995, target.y + 0.995, target.z + 0.995,
-            0.72f, 0.08f, 1.0f, 0.48f
+            0.72f, 0.08f, 1.0f, 0.24f
         )
+
+        // The player chooses this point from above: draw a flat landing mark on top of the base.
+        val cx = target.x + 0.5
+        val cz = target.z + 0.5
+        val feet = target.y + 1.0
+        fun mark(x1: Double, z1: Double, x2: Double, z2: Double, white: Boolean = false) {
+            LevelRenderer.addChainedFilledBoxVertices(pose, fill,
+                x1, feet + 0.015, z1, x2, feet + 0.025, z2,
+                if (white) 1.0f else 0.88f, if (white) 0.94f else 0.24f, 1.0f, 0.88f)
+        }
+        mark(cx - 0.08, cz - 0.38, cx + 0.08, cz + 0.38, true)
+        mark(cx - 0.38, cz - 0.08, cx + 0.38, cz + 0.08, true)
+        mark(cx - 0.65, cz - 0.65, cx - 0.36, cz - 0.61)
+        mark(cx - 0.65, cz - 0.65, cx - 0.61, cz - 0.36)
+        mark(cx + 0.36, cz - 0.65, cx + 0.65, cz - 0.61)
+        mark(cx + 0.61, cz - 0.65, cx + 0.65, cz - 0.36)
+        mark(cx - 0.65, cz + 0.61, cx - 0.36, cz + 0.65)
+        mark(cx - 0.65, cz + 0.36, cx - 0.61, cz + 0.65)
+        mark(cx + 0.36, cz + 0.61, cx + 0.65, cz + 0.65)
+        mark(cx + 0.61, cz + 0.36, cx + 0.65, cz + 0.65)
         source.endBatch(RenderType.debugFilledBox())
 
         val lines = source.getBuffer(RenderType.lines())
@@ -81,9 +101,6 @@ object SpawnPreviewRenderer {
         LevelRenderer.renderLineBox(pose, lines, target.x + 0.06, target.y + 0.06, target.z + 0.06,
             target.x + 0.94, target.y + 0.94, target.z + 0.94, 0.9f, 0.72f, 1.0f, 1.0f)
 
-        val cx = target.x + 0.5
-        val cz = target.z + 0.5
-        val feet = target.y + 1.0
         // A bright body, head, arms, and legs outline shows exactly where the player will stand.
         LevelRenderer.renderLineBox(pose, lines, cx - 0.19, feet + 0.68, cz - 0.12,
             cx + 0.19, feet + 1.48, cz + 0.12, 0.96f, 0.7f, 1.0f, 1.0f)
