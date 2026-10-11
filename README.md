@@ -1,5 +1,11 @@
 # Better Spawns (Forge 1.20.1, Kotlin)
 
+## Scope and authority
+
+This repository owns its mod-specific behavior and authoring inputs. Read [local instructions](AGENTS.md)
+and the [shared documentation/policy index](../../better-content-modpack/docs/README.md).
+
+
 A Forge mod that forces new players to pick a class before starting:
 - On first join, player is put into spectator mode.
 - Client is prompted to open class menu with `K`.
