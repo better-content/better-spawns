@@ -8,6 +8,8 @@ import com.bettercontent.betterspawns.network.ClassSelectorNetwork
 import com.bettercontent.betterspawns.network.RequestOpenMenuPacket
 import com.bettercontent.betterspawns.network.SyncClassesPacket
 import com.bettercontent.betterspawns.respawn.PersonalRespawnService
+import com.bettercontent.betterspawns.respawn.RespawnMarker
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.level.GameType
 import net.minecraftforge.event.OnDatapackSyncEvent
@@ -21,6 +23,7 @@ import net.minecraftforge.network.PacketDistributor
 @Mod(ClassSelectorMod.MOD_ID)
 class ClassSelectorMod {
     init {
+        RespawnMarker.register(FMLJavaModLoadingContext.get().modEventBus)
         ClassSelectorNetwork.register()
     }
 

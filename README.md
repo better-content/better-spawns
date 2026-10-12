@@ -16,6 +16,12 @@ A Forge mod that forces new players to pick a class before starting:
 - Kits are JSON-defined in `config/better_spawns/kits.json`.
 - Alternatively, `config/better_spawns/embark.json` can switch onboarding to an embark-style point-buy item pool.
 - Respawning returns the player to that saved starting location with the scripted sound and particle FX.
+- Onboarding and every respawn ensure `better_spawns:respawn_marker` beneath the stored feet position.
+  The block inherits vanilla crying obsidian's appearance, light, hardness and ambient particles,
+  drops itself with a diamond-or-better pickaxe, and has no recipe. Better Compat Fixes excludes
+  only this exact block from the pinned RBP falling-operation admission path; vanilla crying
+  obsidian retains normal physics. Existing saves upgrade lazily at the player's stored point,
+  including an already safe legacy site; there is no global crying-obsidian scan.
 
 ## Admin commands
 
@@ -75,7 +81,12 @@ Use Java 17 for all commands.
 ./gradlew verifyFull
 ```
 
-`verifyFast` runs the JVM and coverage lane. `verifyFull` adds the headless Forge GameTest pass.
+`verifyFast` runs the JVM and coverage lane plus the production refmap gate. `verifyFull` adds
+headless Forge GameTests. The refmap gate reads the final reobfuscated JAR and requires the generated
+`ServerLevelMixin` production mappings for both `tickTime` and `setDayTime`, in default and `searge`
+environments. `stageRuntimeJar` also depends on this gate before copying the JAR. The Java annotation
+processor's refmap/mapping sidecars are declared Gradle outputs; non-incremental compilation of the
+single Java mixin recreates them if they disappear. No shipped or historical refmap is used.
 
 ### Local client
 ```bash

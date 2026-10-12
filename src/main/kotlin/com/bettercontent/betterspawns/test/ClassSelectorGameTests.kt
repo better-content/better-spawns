@@ -9,6 +9,7 @@ import com.bettercontent.betterspawns.kit.KitApplicator
 import com.bettercontent.betterspawns.kit.KitSlot
 import com.bettercontent.betterspawns.respawn.PersonalRespawnPoint
 import com.bettercontent.betterspawns.respawn.PersonalRespawnService
+import com.bettercontent.betterspawns.respawn.RespawnMarker
 import com.mojang.authlib.GameProfile
 import net.minecraft.core.BlockPos
 import net.minecraft.gametest.framework.GameTest
@@ -125,7 +126,7 @@ object ClassSelectorGameTests {
         )
 
         helper.assertTrue(prepared.locationAdjusted, "Expected flying selection to descend to terrain")
-        helper.assertTrue(prepared.sitePrepared, "Expected the terrain block to be replaced with crying obsidian")
+        helper.assertTrue(prepared.sitePrepared, "Expected the terrain block to be replaced with the respawn marker")
         helper.assertTrue(
             prepared.point == PersonalRespawnPoint(
                 dim = helper.level.dimension().location().toString(),
@@ -135,7 +136,7 @@ object ClassSelectorGameTests {
             ),
             "Expected respawn point directly below the player, found ${prepared.point}"
         )
-        helper.assertBlockPresent(Blocks.CRYING_OBSIDIAN, targetFeetPos.below())
+        helper.assertBlockPresent(RespawnMarker.BLOCK.get(), targetFeetPos.below())
         helper.assertBlockPresent(Blocks.AIR, targetFeetPos)
         helper.assertBlockPresent(Blocks.AIR, targetFeetPos.above())
         helper.assertBlockPresent(Blocks.STONE, sideFeetPos.below())
@@ -183,7 +184,7 @@ object ClassSelectorGameTests {
             ),
             "Expected first solid block in the player's column, found ${prepared.point}"
         )
-        helper.assertBlockPresent(Blocks.CRYING_OBSIDIAN, firstFeetPos.below())
+        helper.assertBlockPresent(RespawnMarker.BLOCK.get(), firstFeetPos.below())
         helper.assertBlockPresent(Blocks.STONE, lowerFeetPos.below())
 
         helper.succeed()
@@ -194,7 +195,7 @@ object ClassSelectorGameTests {
     fun alreadyPreparedValidRespawnSiteIsLeftInPlace(helper: GameTestHelper) {
         val requestedFeetPos = BlockPos(1, 1, 1)
 
-        helper.setBlock(requestedFeetPos.below(), Blocks.CRYING_OBSIDIAN)
+        helper.setBlock(requestedFeetPos.below(), RespawnMarker.BLOCK.get())
         helper.setBlock(requestedFeetPos, Blocks.AIR)
         helper.setBlock(requestedFeetPos.above(), Blocks.AIR)
 
@@ -220,10 +221,56 @@ object ClassSelectorGameTests {
             ),
             "Expected prepared point to equal requested point, found ${prepared.point}"
         )
-        helper.assertBlockPresent(Blocks.CRYING_OBSIDIAN, requestedFeetPos.below())
+        helper.assertBlockPresent(RespawnMarker.BLOCK.get(), requestedFeetPos.below())
         helper.assertBlockPresent(Blocks.AIR, requestedFeetPos)
         helper.assertBlockPresent(Blocks.AIR, requestedFeetPos.above())
 
+        helper.succeed()
+    }
+
+    @JvmStatic
+    @GameTest(template = "empty")
+    fun respawnUpgradesOnlyStoredLegacyMarkerAndRecreatesMissingMarker(helper: GameTestHelper) {
+        val player = testPlayer(helper)
+        player.connection = net.minecraft.server.network.ServerGamePacketListenerImpl(
+            helper.level.server, net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND), player
+        )
+        val feet = BlockPos(1, 2, 1)
+        val unrelated = BlockPos(4, 1, 4)
+        helper.setBlock(feet.below(), Blocks.STONE)
+        helper.setBlock(feet, Blocks.AIR)
+        helper.setBlock(feet.above(), Blocks.AIR)
+        helper.setBlock(unrelated, Blocks.CRYING_OBSIDIAN)
+        val absolute = helper.absolutePos(feet)
+        val point = PersonalRespawnPoint(helper.level.dimension().location().toString(), absolute.x, absolute.y, absolute.z)
+        PersonalRespawnService.setRespawnPoint(player, point)
+        helper.assertBlockPresent(RespawnMarker.BLOCK.get(), feet.below())
+        OnboardingIntegration.finalizeOnboarding(player, "spawn_only", OnboardingIntegration.buildSpawnId(point))
+        // Both legacy and missing bases can have clear feet/head; safety alone must not skip repair.
+        for (base in listOf(Blocks.CRYING_OBSIDIAN, Blocks.AIR, Blocks.STONE)) {
+            helper.setBlock(feet.below(), base)
+            PersonalRespawnService.handleRespawn(player)
+            helper.assertBlockPresent(RespawnMarker.BLOCK.get(), feet.below())
+            helper.assertBlockPresent(Blocks.CRYING_OBSIDIAN, unrelated)
+            helper.assertTrue(PersonalRespawnService.getRespawnPoint(player) == point, "Stored location must not move")
+        }
+        helper.succeed()
+    }
+
+    @JvmStatic
+    @GameTest(template = "empty")
+    fun markerCopiesVanillaPropertiesAndRequiresDiamondPickaxe(helper: GameTestHelper) {
+        val marker = RespawnMarker.BLOCK.get().defaultBlockState()
+        val vanilla = Blocks.CRYING_OBSIDIAN.defaultBlockState()
+        val pos = helper.absolutePos(BlockPos(1, 1, 1))
+        helper.assertTrue(marker.lightEmission == vanilla.lightEmission, "Marker must retain crying-obsidian light")
+        helper.assertTrue(marker.getDestroySpeed(helper.level, pos) == vanilla.getDestroySpeed(helper.level, pos), "Marker hardness must match vanilla")
+        helper.assertTrue(marker.requiresCorrectToolForDrops(), "Marker must require the appropriate tool")
+        helper.assertFalse(net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE).isCorrectToolForDrops(marker), "Iron pickaxe must not harvest marker")
+        helper.assertTrue(net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE).isCorrectToolForDrops(marker), "Diamond pickaxe must harvest marker")
+        helper.assertTrue(RespawnMarker.BLOCK.get() is net.minecraft.world.level.block.CryingObsidianBlock, "Native particle behavior must be inherited")
+        val drops = net.minecraft.world.level.block.Block.getDrops(marker, helper.level, pos, null, null, net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_PICKAXE))
+        helper.assertTrue(drops.size == 1 && drops.single().`is`(RespawnMarker.ITEM.get()), "Marker must drop itself")
         helper.succeed()
     }
 
