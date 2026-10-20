@@ -32,8 +32,14 @@ class FinalizeSelectionPacket(
         private const val MAX_SELECTION_ID_LENGTH: Int = 128
         private const val MAX_PURCHASES: Int = 256
 
-        private fun reject(player: ServerPlayer, message: String) {
+        private fun reject(player: ServerPlayer, message: String, reason: String) {
+            outcome("rejected", reason)
             ClassSelectorNetwork.CHANNEL.send(PacketDistributor.PLAYER.with { player }, SelectionNoticePacket(message, true))
+        }
+
+        private fun outcome(result: String, reason: String) {
+            val log = com.bettercontent.betterspawns.PlaytestDiagnostics.LOG
+            if (log.enabled("selection")) log.event("selection", "onboarding.finalize", "server", result, reason, null)
         }
 
         fun spawnOnly(dimensionId: String, x: Int, y: Int, z: Int): FinalizeSelectionPacket =
@@ -116,31 +122,39 @@ class FinalizeSelectionPacket(
             val ctx = context.get()
             ctx.enqueueWork {
                 val player = ctx.sender ?: return@enqueueWork
-                if (!ClassSelectorScope.isActiveIn(player.server)) return@enqueueWork
+                if (!ClassSelectorScope.isActiveIn(player.server)) {
+                    outcome("rejected", "inactive_scope")
+                    return@enqueueWork
+                }
                 if (PersonalRespawnService.isReselectingSpawn(player)) {
                     if (!OnboardingIntegration.hasCompletedOnboarding(player) || !player.isSpectator ||
                         ResourceLocation.tryParse(packet.dimensionId) == null
                     ) {
-                        reject(player, "Spawn reselection is not available right now.")
+                        reject(player, "Spawn reselection is not available right now.", "reselection_unavailable")
                         return@enqueueWork
                     }
                     val approved = PersonalRespawnService.validateOnboardingRespawnPoint(
                         player, PersonalRespawnPoint(packet.dimensionId, packet.x, packet.y, packet.z)
                     ) ?: run {
-                        reject(player, "Choose a solid block directly below your current position.")
+                        reject(player, "Choose a solid block directly below your current position.", "reselection_invalid_site")
                         return@enqueueWork
                     }
                     val committed = runCatching { PersonalRespawnService.completeSpawnReselection(player, approved) }
                         .getOrElse { error ->
-                            reject(player, error.message ?: "The selected spawn is no longer safe.")
+                            reject(player, error.message ?: "The selected spawn is no longer safe.", "reselection_commit_rejected")
                             return@enqueueWork
                         }
                     OnboardingIntegration.recordStartingSite(player, OnboardingIntegration.buildSpawnId(committed.point))
-                    PersonalRespawnService.releasePlayerFromSpectator(player)
+                    val released = PersonalRespawnService.releasePlayerFromSpectator(player)
+                    val log = com.bettercontent.betterspawns.PlaytestDiagnostics.LOG
+                    if (log.enabled("selection")) com.bettercontent.betterspawns.diagnostics.FeatureTelemetry.finalized(log, released, true)
                     OnboardingVisibilitySync.sync(player.server)
                     return@enqueueWork
                 }
-                if (OnboardingIntegration.hasCompletedOnboarding(player)) return@enqueueWork
+                if (OnboardingIntegration.hasCompletedOnboarding(player)) {
+                    outcome("rejected", "already_completed")
+                    return@enqueueWork
+                }
 
                 val selectionData = SelectionDataRepository.getOrLoad()
                 val requestedMode = runCatching { SelectionMode.parse(packet.selectionMode) }.getOrNull()
@@ -149,13 +163,13 @@ class FinalizeSelectionPacket(
                         PacketDistributor.PLAYER.with { player },
                         SyncClassesPacket.fromSelectionData(true, selectionData)
                     )
-                    reject(player, "Starting selection mode changed. Open the menu and try again.")
+                    reject(player, "Starting selection mode changed. Open the menu and try again.", "selection_mode_changed")
                     return@enqueueWork
                 }
 
                 val kit = when (selectionData.mode) {
                     SelectionMode.CLASS -> selectionData.kits.firstOrNull { it.id == packet.classId } ?: run {
-                        reject(player, "Invalid class selection.")
+                        reject(player, "Invalid class selection.", "invalid_class")
                         return@enqueueWork
                     }
                     else -> null
@@ -164,25 +178,25 @@ class FinalizeSelectionPacket(
                     SelectionMode.EMBARK_POINTS -> runCatching {
                         EmbarkPurchaseService.validate(selectionData.embarkSettings, packet.embarkPurchases)
                     }.getOrElse { error ->
-                        reject(player, error.message ?: "Invalid embark purchases.")
+                        reject(player, error.message ?: "Invalid embark purchases.", "invalid_purchases")
                         return@enqueueWork
                     }
                     else -> null
                 }
                 if (ResourceLocation.tryParse(packet.dimensionId) == null) {
-                    reject(player, "Invalid respawn dimension.")
+                    reject(player, "Invalid respawn dimension.", "invalid_dimension")
                     return@enqueueWork
                 }
                 val approvedPoint = PersonalRespawnService.validateOnboardingRespawnPoint(
                     player, PersonalRespawnPoint(packet.dimensionId, packet.x, packet.y, packet.z)
                 ) ?: run {
-                    reject(player, "Choose a valid respawn site at your current position.")
+                    reject(player, "Choose a valid respawn site at your current position.", "invalid_site")
                     return@enqueueWork
                 }
                 // All rejection paths above are side-effect free. Commit the site before grants.
                 val preparedPoint = runCatching { PersonalRespawnService.commitPreparedRespawnPoint(player, approvedPoint) }
                     .getOrElse { error ->
-                        reject(player, error.message ?: "Starting site is no longer safe.")
+                        reject(player, error.message ?: "Starting site is no longer safe.", "site_commit_rejected")
                         return@enqueueWork
                     }
                 val resolvedPoint = preparedPoint.point
@@ -218,7 +232,10 @@ class FinalizeSelectionPacket(
                     SelectionMode.PROGRESSION -> error("Progression mode must resolve before selection finalization")
                 }
 
-                if (!PersonalRespawnService.releasePlayerFromSpectator(player)) {
+                val released = PersonalRespawnService.releasePlayerFromSpectator(player)
+                val log = com.bettercontent.betterspawns.PlaytestDiagnostics.LOG
+                if (log.enabled("selection")) com.bettercontent.betterspawns.diagnostics.FeatureTelemetry.finalized(log, released, false)
+                if (!released) {
                     ClassSelectorNetwork.CHANNEL.send(
                         PacketDistributor.PLAYER.with { player },
                         SelectionNoticePacket("Your starting site is being prepared. You will enter shortly.", false)

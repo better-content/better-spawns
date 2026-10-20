@@ -1,5 +1,17 @@
 # Better Spawns (Forge 1.20.1, Kotlin)
 
+## Playtest logging
+
+`bc.playtest.better_spawns.selection` records stable validation-rejection codes and distinguishes
+committed onboarding/reselection from actual spectator release or deferred release. It never logs
+client packet fields, freeform rejection text, class/purchase contents, player names or spawn
+coordinates. Native validation, site-commit-before-grants and release ordering are unchanged.
+DEBUG/TRACE share 120/minute (burst 20), 256 keys and 2,048-character records, with 30-second
+summaries. Startup INFO reports loaded version/mode/limits and World Management presence;
+unavailable source identity is `UNKNOWN`. Stop/disconnect clears transient keys without
+rearming process allowances. Pure emitter/contracts supplement the native selection gates;
+no GUI or inventory visual acceptance is implied.
+
 ## Scope and authority
 
 This repository owns its mod-specific behavior and authoring inputs. Read [local instructions](AGENTS.md)
