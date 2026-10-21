@@ -1,11 +1,24 @@
 # Better Spawns (Forge 1.20.1, Kotlin)
 
+## Native fixture verification
+
+Each Gradle invocation selects a fresh nonshipping `build/gametest/<uuid>` directory in the actual
+ForgeGradle GameTest RunConfig; structure copies and native log readers use that same directory.
+Ordinary developer `run`, visual/data roots and prior fixtures are never reset, relocated or merged.
+`verifyFast` checks isolated-directory rejection, absent-only native settings preparation,
+preservation and synthetic ERROR/FATAL rejection. `verifyFull` prepares defaults-only
+`server.properties` there when absent and rejects ERROR/FATAL in both actual latest/debug logs
+even when tests and process exit pass. Retain complete build trees/evidence across handoffs.
+
 ## Playtest logging
 
 `bc.playtest.better_spawns.selection` records stable validation-rejection codes and distinguishes
 committed onboarding/reselection from actual spectator release or deferred release. It never logs
 client packet fields, freeform rejection text, class/purchase contents, player names or spawn
-coordinates. Native validation, site-commit-before-grants and release ordering are unchanged.
+coordinates. Native player UUID and current dimension/game tick correlate validation, commit and
+release for simultaneous selections without publishing packet contents or an extra session ID.
+This bounded causal UUID is intentional. Native validation, site-commit-before-grants and release
+ordering are unchanged.
 DEBUG/TRACE share 120/minute (burst 20), 256 keys and 2,048-character records, with 30-second
 summaries. Startup INFO reports loaded version/mode/limits and World Management presence;
 unavailable source identity is `UNKNOWN`. Stop/disconnect clears transient keys without

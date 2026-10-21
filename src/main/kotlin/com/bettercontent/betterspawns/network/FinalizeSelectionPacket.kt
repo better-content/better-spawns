@@ -33,13 +33,16 @@ class FinalizeSelectionPacket(
         private const val MAX_PURCHASES: Int = 256
 
         private fun reject(player: ServerPlayer, message: String, reason: String) {
-            outcome("rejected", reason)
+            outcome(player, "rejected", reason)
             ClassSelectorNetwork.CHANNEL.send(PacketDistributor.PLAYER.with { player }, SelectionNoticePacket(message, true))
         }
 
-        private fun outcome(result: String, reason: String) {
+        private fun context(player: ServerPlayer) = com.bettercontent.betterspawns.diagnostics.PlaytestLog.Context(
+            "server", player.serverLevel().dimension().location().toString(), player.serverLevel().gameTime, player.uuid.toString(), "")
+
+        private fun outcome(player: ServerPlayer, result: String, reason: String) {
             val log = com.bettercontent.betterspawns.PlaytestDiagnostics.LOG
-            if (log.enabled("selection")) log.event("selection", "onboarding.finalize", "server", result, reason, null)
+            if (log.enabled("selection")) log.debug("selection", "onboarding.finalize", context(player), result, reason, null)
         }
 
         fun spawnOnly(dimensionId: String, x: Int, y: Int, z: Int): FinalizeSelectionPacket =
@@ -123,7 +126,7 @@ class FinalizeSelectionPacket(
             ctx.enqueueWork {
                 val player = ctx.sender ?: return@enqueueWork
                 if (!ClassSelectorScope.isActiveIn(player.server)) {
-                    outcome("rejected", "inactive_scope")
+                    outcome(player, "rejected", "inactive_scope")
                     return@enqueueWork
                 }
                 if (PersonalRespawnService.isReselectingSpawn(player)) {
@@ -147,12 +150,12 @@ class FinalizeSelectionPacket(
                     OnboardingIntegration.recordStartingSite(player, OnboardingIntegration.buildSpawnId(committed.point))
                     val released = PersonalRespawnService.releasePlayerFromSpectator(player)
                     val log = com.bettercontent.betterspawns.PlaytestDiagnostics.LOG
-                    if (log.enabled("selection")) com.bettercontent.betterspawns.diagnostics.FeatureTelemetry.finalized(log, released, true)
+                    if (log.enabled("selection")) com.bettercontent.betterspawns.diagnostics.FeatureTelemetry.finalized(log, context(player), released, true)
                     OnboardingVisibilitySync.sync(player.server)
                     return@enqueueWork
                 }
                 if (OnboardingIntegration.hasCompletedOnboarding(player)) {
-                    outcome("rejected", "already_completed")
+                    outcome(player, "rejected", "already_completed")
                     return@enqueueWork
                 }
 
@@ -234,7 +237,7 @@ class FinalizeSelectionPacket(
 
                 val released = PersonalRespawnService.releasePlayerFromSpectator(player)
                 val log = com.bettercontent.betterspawns.PlaytestDiagnostics.LOG
-                if (log.enabled("selection")) com.bettercontent.betterspawns.diagnostics.FeatureTelemetry.finalized(log, released, false)
+                if (log.enabled("selection")) com.bettercontent.betterspawns.diagnostics.FeatureTelemetry.finalized(log, context(player), released, false)
                 if (!released) {
                     ClassSelectorNetwork.CHANNEL.send(
                         PacketDistributor.PLAYER.with { player },

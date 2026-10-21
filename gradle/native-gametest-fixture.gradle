@@ -1,0 +1,71 @@
+// Source fixture only: absent settings should use native defaults without Settings ERROR.
+// Existing settings and prior native evidence must not be overwritten by this preparation.
+def prepareNativeProperties = { File properties ->
+    if (!properties.exists()) {
+        properties.parentFile.mkdirs()
+        properties.text = '# Fresh source GameTest fixture: native defaults, no overrides.\n'
+    }
+}
+def verifyNativeDiagnostics = { String text ->
+    def failures = text.readLines().findAll { (it =~ /\[[^\]\r\n]*\/(?:ERROR|FATAL)\]/).find() }
+    if (failures) throw new GradleException('Native GameTest ERROR/FATAL requires diagnosis: ' + failures.join('\n'))
+}
+
+def verifyNativeDirectory = { File candidate ->
+    def directory = candidate.canonicalFile
+    def root = layout.buildDirectory.dir('gametest').get().asFile.canonicalFile
+    if (directory.parentFile != root || !(directory.name ==~ /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/))
+        throw new GradleException('Native fixture must be an isolated build/gametest/UUID directory, never an operator input: ' + directory)
+    directory
+}
+// ForgeGradle populates JavaExec.workingDir later than doFirst; read its authoritative RunConfig.
+def configuredNativeDirectory = {
+    verifyNativeDirectory(project.file(minecraft.runs.getByName('gameTestServer').workingDirectory))
+}
+if (configuredNativeDirectory().exists())
+    throw new GradleException('Native fixture UUID already exists; retain it and start a new invocation')
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    doFirst {
+        def directory = configuredNativeDirectory()
+        prepareNativeProperties(new File(directory, 'server.properties'))
+        logger.lifecycle('Native GameTest RunConfig workingDirectory=' + directory)
+    }
+    doLast {
+        ['latest.log', 'debug.log'].each { name ->
+            def log = new File(configuredNativeDirectory(), 'logs/' + name)
+            if (!log.isFile()) throw new GradleException('Missing actual native GameTest log: ' + log)
+            verifyNativeDiagnostics(log.text)
+        }
+    }
+}
+
+tasks.register('verifyNativeGameTestFixtureGuard') {
+    group = 'verification'
+    description = 'Checks absent-only native settings preparation and strict diagnostic rejection without Minecraft.'
+    doLast {
+        configuredNativeDirectory()
+        [project.projectDir, project.file('run'), project.file('run-visual'), project.file('run-data'),
+         layout.buildDirectory.dir('gametest/not-a-uuid').get().asFile].each { invalid ->
+            boolean rejected = false
+            try { verifyNativeDirectory(invalid) } catch (GradleException expected) { rejected = true }
+            if (!rejected) throw new GradleException('Native directory guard accepted an operator/nonfixture path')
+        }
+        def properties = layout.buildDirectory.file('native-fixture-guard/' + UUID.randomUUID() + '/server.properties').get().asFile
+        prepareNativeProperties(properties)
+        if (!properties.isFile() || !properties.readLines().every { !it || it.startsWith('#') })
+            throw new GradleException('Fresh settings must exist without overriding native defaults')
+        def existing = 'max-tick-time=123456\nlevel-name=retained-fixture\n'
+        properties.text = existing
+        prepareNativeProperties(properties)
+        if (properties.text != existing) throw new GradleException('Preparation overwrote existing native settings')
+        verifyNativeDiagnostics('[00:00:00] [main/INFO] Native fixture ready')
+        ['[00:00:00] [main/ERROR] Synthetic missing settings',
+         '[00:00:00] [Server thread/FATAL] Synthetic native failure'].each { invalid ->
+            boolean rejected = false
+            try { verifyNativeDiagnostics(invalid) } catch (GradleException expected) { rejected = true }
+            if (!rejected) throw new GradleException('Native diagnostic guard accepted synthetic failure')
+        }
+        logger.lifecycle('Native fixture guard: isolated UUID + absent/defaults + preserve-existing + ERROR/FATAL negative controls PASS')
+    }
+}
+tasks.matching { it.name == 'verifyFast' }.configureEach { dependsOn('verifyNativeGameTestFixtureGuard') }

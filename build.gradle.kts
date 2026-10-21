@@ -1,5 +1,6 @@
 import groovy.json.JsonSlurper
 import java.util.zip.ZipFile
+import java.util.UUID
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -31,6 +32,9 @@ java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(17))
 }
 
+// Nonshipping source fixture identity, never a gameplay/diagnostic correlation ID.
+val nativeGameTestDirectory = layout.buildDirectory.dir("gametest/${UUID.randomUUID()}").get().asFile
+
 minecraft {
     mappings("parchment", property("parchment_version") as String)
     copyIdeResources = true
@@ -56,6 +60,7 @@ minecraft {
             arg("--nogui")
         }
         create("gameTestServer") {
+            workingDirectory(nativeGameTestDirectory)
             property("forge.enabledGameTestNamespaces", property("mod_id") as String)
         }
     }
@@ -209,7 +214,7 @@ tasks.register("headlessGameTest") {
 
 val syncGameTestStructures by tasks.registering(Copy::class) {
     from(layout.projectDirectory.dir("gameteststructures"))
-    into(layout.projectDirectory.dir("run/gameteststructures"))
+    into(nativeGameTestDirectory.resolve("gameteststructures"))
 }
 
 tasks.matching { it.name == "prepareRunGameTestServer" }.configureEach {
@@ -239,6 +244,8 @@ tasks.register("verifyFast") {
     dependsOn(tasks.named("check"))
     dependsOn(verifyRuntimeRefmap)
 }
+
+apply(from = "gradle/native-gametest-fixture.gradle")
 
 tasks.register("verifyFull") {
     group = "verification"
