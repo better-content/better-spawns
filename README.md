@@ -25,11 +25,7 @@ unavailable source identity is `UNKNOWN`. Stop/disconnect clears transient keys 
 rearming process allowances. Pure emitter/contracts supplement the native selection gates;
 no GUI or inventory visual acceptance is implied.
 
-## Scope and authority
-
-This repository owns its mod-specific behavior and authoring inputs. Read [local instructions](AGENTS.md)
-and the [shared documentation/policy index](../../better-content-modpack/docs/README.md).
-
+## Scope
 
 A Forge mod that forces new players to pick a class before starting:
 - On first join, player is put into spectator mode.
