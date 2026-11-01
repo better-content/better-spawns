@@ -18,6 +18,15 @@ mixin {
     config("better_spawns.mixins.json")
 }
 
+// MixinGradle consumes these AP sidecars during reobfuscation but does not track
+// them as javac outputs. A provider-only incremental compile can otherwise leave
+// them absent even though classes exist. Regenerate them instead of skipping AP.
+tasks.named<JavaCompile>("compileJava") {
+    outputs.file(layout.buildDirectory.file("tmp/compileJava/compileJava-mappings.tsrg"))
+    outputs.file(layout.buildDirectory.file("tmp/compileJava/compileJava-refmap.json"))
+    options.isIncremental = false
+}
+
 group = "com.bettercontent"
 version = property("mod_version") as String
 
