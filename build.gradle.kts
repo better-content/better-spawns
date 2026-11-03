@@ -1,3 +1,6 @@
+import groovy.json.JsonSlurper
+import java.util.zip.ZipFile
+import java.util.UUID
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -38,6 +41,9 @@ java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(17))
 }
 
+// Nonshipping source fixture identity, never a gameplay/diagnostic correlation ID.
+val nativeGameTestDirectory = layout.buildDirectory.dir("gametest/${UUID.randomUUID()}").get().asFile
+
 minecraft {
     mappings("parchment", property("parchment_version") as String)
     copyIdeResources = true
@@ -63,6 +69,7 @@ minecraft {
             arg("--nogui")
         }
         create("gameTestServer") {
+            workingDirectory(nativeGameTestDirectory)
             property("forge.enabledGameTestNamespaces", property("mod_id") as String)
         }
     }
@@ -115,14 +122,61 @@ tasks.withType<KotlinCompile>().configureEach {
     }
 }
 
+val generatedRefmap = layout.buildDirectory.file("tmp/compileJava/compileJava-refmap.json")
+
+tasks.named<JavaCompile>("compileJava") {
+    // MixinGradle's AP sidecar is otherwise absent from Gradle's output/cache snapshot.
+    outputs.file(generatedRefmap)
+    outputs.file(layout.buildDirectory.file("tmp/compileJava/compileJava-mappings.tsrg"))
+    // An invalidated incremental compile can skip the aggregate AP when no Java source changed.
+    // There is only one Java mixin; regenerate its complete refmap whenever compilation runs.
+    options.isIncremental = false
+}
+
 tasks.named<Jar>("jar") {
+    dependsOn(tasks.named("compileJava"))
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(generatedRefmap) { rename { "better_spawns.refmap.json" } }
     finalizedBy("reobfJar")
+}
+
+val verifyRuntimeRefmap by tasks.registering {
+    group = "verification"
+    description = "Rejects production JARs without generated ServerLevel daylight mixin mappings."
+    dependsOn(tasks.named("reobfJar"))
+    val runtimeJar = layout.buildDirectory.file("reobfJar/output.jar")
+    inputs.file(runtimeJar)
+    doLast {
+        ZipFile(runtimeJar.get().asFile).use { zip ->
+            val configEntry = zip.getEntry("better_spawns.mixins.json")
+                ?: throw GradleException("Runtime JAR is missing better_spawns.mixins.json")
+            val config = zip.getInputStream(configEntry).reader().use { JsonSlurper().parse(it) } as Map<*, *>
+            check(config["refmap"] == "better_spawns.refmap.json") { "Runtime config does not declare the generated refmap" }
+            val entry = zip.getEntry("better_spawns.refmap.json")
+                ?: throw GradleException("Runtime JAR is missing better_spawns.refmap.json")
+            val refmap = zip.getInputStream(entry).reader().use { JsonSlurper().parse(it) } as Map<*, *>
+            val data = refmap["data"] as? Map<*, *>
+                ?: throw GradleException("Runtime refmap has no production mapping environments")
+            for (mappings in listOf(refmap["mappings"], data["searge"])) {
+                val types = mappings as? Map<*, *>
+                    ?: throw GradleException("Runtime refmap has no default/searge mapping table")
+                val daylight = types["com/bettercontent/betterspawns/mixin/ServerLevelMixin"] as? Map<*, *>
+                    ?: throw GradleException("Runtime refmap has no ServerLevelMixin mappings")
+                check(daylight["tickTime"] == "Lnet/minecraft/server/level/ServerLevel;m_8809_()V"
+                        && daylight["Lnet/minecraft/server/level/ServerLevel;setDayTime(J)V"]
+                            == "Lnet/minecraft/server/level/ServerLevel;m_8615_(J)V") {
+                    "Runtime refmap lacks the exact production tickTime/setDayTime mappings: $daylight"
+                }
+            }
+        }
+    }
 }
 
 val stageRuntimeJar by tasks.registering(Copy::class) {
     group = "build"
     description = "Stages the reobfuscated runtime jar into build/libs using the canonical release filename."
-    dependsOn(tasks.named("reobfJar"))
+    // Validate the final reobfuscated source before copying; never depend back on staging.
+    dependsOn(verifyRuntimeRefmap)
     from(layout.buildDirectory.file("reobfJar/output.jar"))
     into(layout.buildDirectory.dir("libs"))
     rename { "${base.archivesName.get()}-$version.jar" }
@@ -169,7 +223,7 @@ tasks.register("headlessGameTest") {
 
 val syncGameTestStructures by tasks.registering(Copy::class) {
     from(layout.projectDirectory.dir("gameteststructures"))
-    into(layout.projectDirectory.dir("run/gameteststructures"))
+    into(nativeGameTestDirectory.resolve("gameteststructures"))
 }
 
 tasks.matching { it.name == "prepareRunGameTestServer" }.configureEach {
@@ -197,7 +251,10 @@ tasks.register("verifyFast") {
     group = "verification"
     description = "Runs the fast deterministic verification lane."
     dependsOn(tasks.named("check"))
+    dependsOn(verifyRuntimeRefmap)
 }
+
+apply(from = "gradle/native-gametest-fixture.gradle")
 
 tasks.register("verifyFull") {
     group = "verification"

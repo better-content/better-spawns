@@ -210,21 +210,6 @@ object PersonalRespawnService {
         return BlockPos(pos.x, clampedY, pos.z)
     }
 
-    private fun isValidFeetPos(level: ServerLevel, feetPos: BlockPos): Boolean {
-        val basePos = feetPos.below()
-        val headPos = feetPos.above()
-        if (feetPos.y < level.minBuildHeight + 1 || headPos.y >= level.maxBuildHeight) return false
-        if (!level.isInWorldBounds(basePos) || !level.isInWorldBounds(feetPos) || !level.isInWorldBounds(headPos)) return false
-
-        val baseState = level.getBlockState(basePos)
-        val feetState = level.getBlockState(feetPos)
-        val headState = level.getBlockState(headPos)
-
-        return baseState.isFaceSturdy(level, basePos, Direction.UP) &&
-            feetState.isAir &&
-            headState.isAir
-    }
-
     private fun hasStableBase(level: ServerLevel, feetPos: BlockPos): Boolean {
         val basePos = feetPos.below()
         return level.isInWorldBounds(basePos) && level.getBlockState(basePos).isFaceSturdy(level, basePos, Direction.UP)
@@ -243,8 +228,8 @@ object PersonalRespawnService {
         val headPos = feetPos.above()
         var changed = false
 
-        if (!level.getBlockState(basePos).`is`(Blocks.CRYING_OBSIDIAN)) {
-            level.setBlockAndUpdate(basePos, Blocks.CRYING_OBSIDIAN.defaultBlockState())
+        if (!level.getBlockState(basePos).`is`(RespawnMarker.BLOCK.get())) {
+            level.setBlockAndUpdate(basePos, RespawnMarker.BLOCK.get().defaultBlockState())
             changed = true
         }
         if (!level.getBlockState(feetPos).isAir) {
@@ -266,9 +251,9 @@ object PersonalRespawnService {
     private fun teleportPlayerToRespawnPoint(server: MinecraftServer, player: ServerPlayer, point: PersonalRespawnPoint) {
         val level = resolveLevel(server, point.dim) ?: player.serverLevel()
         val feetPos = BlockPos(point.x, point.y, point.z)
-        if (!isValidFeetPos(level, feetPos)) {
-            prepareRespawnSite(level, feetPos)
-        }
+        // Always ensure the marker, even when a legacy crying-obsidian site is already safe.
+        // Only this player's stored coordinate is upgraded; never scan the world for old markers.
+        prepareRespawnSite(level, feetPos)
         player.teleportTo(level, point.x + 0.5, point.y.toDouble(), point.z + 0.5, player.yRot, player.xRot)
         RespawnTaskScheduler.schedule(server, 1) {
             playRespawnSoundForPlayer(server, player, point)
