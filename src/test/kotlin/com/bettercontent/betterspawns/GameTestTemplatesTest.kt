@@ -11,7 +11,7 @@ class GameTestTemplatesTest {
     @Test
     fun `class prefixed GameTest templates exist in authored fixtures`() {
         val source = Files.readString(Path.of(
-            "src/main/kotlin/com/bettercontent/betterspawns/test/ClassSelectorGameTests.kt"
+            "src/main/kotlin/com/bettercontent/betterspawns/test/BetterSpawnsGameTests.kt"
         ))
         val holder = assertNotNull(Regex("(?m)^object\\s+(\\w+)\\s*\\{").find(source)).groupValues[1]
         val templates = Regex("@GameTest\\(\\s*template\\s*=\\s*\"([^\"]+)\"")
