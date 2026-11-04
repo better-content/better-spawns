@@ -31,3 +31,5 @@ Thumbs.db
 /.codex/
 /libs/*.jar
 /src/generated/resources/.cache/
+# Locally cached binaries; Packwiz metadata/hashes remain tracked separately.
+/gradle/wrapper/gradle-wrapper.jar
