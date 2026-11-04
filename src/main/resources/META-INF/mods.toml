@@ -45,6 +45,13 @@ Class selection mod with JSON-defined starter kits, spectator gating for new pla
     side="BOTH"
 
 [[dependencies.${mod_id}]]
+    modId="better_gameplay_notices"
+    mandatory=true
+    versionRange="[1.0.1,)"
+    ordering="AFTER"
+    side="CLIENT"
+
+[[dependencies.${mod_id}]]
     modId="better_world_management"
     mandatory=false
     versionRange="[0.1.0,0.2)"

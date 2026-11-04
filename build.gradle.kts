@@ -107,6 +107,7 @@ dependencies {
     compileOnly(fg.deobf(curiosApiNotation))
     runtimeOnly(fg.deobf("top.theillusivec4.curios:curios-forge:${property("curios_version")}"))
     compileOnly(files(betterContentJar("better-world-management", "better-world-management-0.1.0.jar")))
+    compileOnly(files(betterContentJar("better-gameplay-notices", "better-gameplay-notices-1.0.1.jar")))
     runtimeOnly(deobf("com.simibubi.create:create-${property("minecraft_version")}:${property("create_version")}:slim"))
     runtimeOnly(deobf("net.createmod.ponder:Ponder-Forge-${property("minecraft_version")}:${property("ponder_version")}"))
     runtimeOnly(deobf("dev.engine-room.flywheel:flywheel-forge-${property("minecraft_version")}:${property("flywheel_version")}"))

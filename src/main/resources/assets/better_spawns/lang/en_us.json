@@ -10,5 +10,11 @@
   "message.better_spawns.class_step_3": "Press Begin or Shift+K to confirm your class and respawn point.",
   "message.better_spawns.embark_step_1": "Press %s to choose your starting supplies.",
   "message.better_spawns.embark_step_2": "Scout as a spectator, then press %s and lock your current spot as respawn.",
-  "message.better_spawns.embark_step_3": "Press Begin or Shift+K to confirm your supplies and respawn point."
+  "message.better_spawns.embark_step_3": "Press Begin or Shift+K to confirm your supplies and respawn point.",
+  "message.better_spawns.guidance_spawn_title": "Choose your starting spot",
+  "message.better_spawns.guidance_spawn_hint": "Scout as a spectator; press Shift+%s to begin here.",
+  "message.better_spawns.guidance_class_title": "Choose your class and starting site",
+  "message.better_spawns.guidance_class_hint": "Press %s to choose a class, then Begin or Shift+%s.",
+  "message.better_spawns.guidance_embark_title": "Choose supplies and a starting site",
+  "message.better_spawns.guidance_embark_hint": "Press %s to choose supplies, then Begin or Shift+%s."
 }
