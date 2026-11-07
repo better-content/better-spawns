@@ -291,22 +291,19 @@ object PersonalRespawnService {
         val y = point.y + 1.0
         val z = point.z + 0.5
         val name = player.scoreboardName
-        runSilentServerCommand(
-            server,
-            "playsound minecraft:block.bell.use master $name $x $y $z ${SOUND_VOL * 0.75} $SOUND_PITCH_BELL $SOUND_MINVOL"
-        )
-        runSilentServerCommand(
-            server,
-            "playsound minecraft:block.end_portal.spawn master $name $x $y $z ${SOUND_VOL * 0.85} $SOUND_PITCH_PORTAL $SOUND_MINVOL"
-        )
-        runSilentServerCommand(
-            server,
-            "playsound minecraft:entity.warden.ambient master $name $x $y $z ${SOUND_VOL * 0.45} $SOUND_PITCH_WARDEN $SOUND_MINVOL"
-        )
-        runSilentServerCommand(
-            server,
+        val sounds = listOf(
+            "playsound minecraft:block.bell.use master $name $x $y $z ${SOUND_VOL * 0.75} $SOUND_PITCH_BELL $SOUND_MINVOL",
+            "playsound minecraft:block.end_portal.spawn master $name $x $y $z ${SOUND_VOL * 0.85} $SOUND_PITCH_PORTAL $SOUND_MINVOL",
+            "playsound minecraft:entity.warden.ambient master $name $x $y $z ${SOUND_VOL * 0.45} $SOUND_PITCH_WARDEN $SOUND_MINVOL",
             "playsound minecraft:entity.evoker.prepare_summon master $name $x $y $z ${SOUND_VOL * 0.55} $SOUND_PITCH_EVOKER $SOUND_MINVOL"
         )
+        // Server scheduling has one-tick (~50 ms) resolution; keep the first sound immediate.
+        sounds.forEachIndexed { index, command ->
+            if (index == 0) runSilentServerCommand(server, command)
+            else RespawnTaskScheduler.schedule(server, index.toLong()) { scheduledServer ->
+                runSilentServerCommand(scheduledServer, command)
+            }
+        }
     }
 
     private fun spawnRespawnParticlesForPlayer(server: MinecraftServer, player: ServerPlayer, point: PersonalRespawnPoint) {
