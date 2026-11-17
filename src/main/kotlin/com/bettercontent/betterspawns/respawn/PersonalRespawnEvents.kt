@@ -16,6 +16,7 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraftforge.event.RegisterCommandsEvent
 import net.minecraftforge.event.TickEvent
 import net.minecraftforge.event.entity.living.LivingDeathEvent
+import net.minecraftforge.event.entity.player.EntityItemPickupEvent
 import net.minecraftforge.event.entity.player.PlayerEvent
 import net.minecraftforge.event.entity.player.PlayerSetSpawnEvent
 import net.minecraftforge.eventbus.api.EventPriority
@@ -25,6 +26,15 @@ import net.minecraftforge.network.PacketDistributor
 
 @Mod.EventBusSubscriber(modid = ClassSelectorMod.MOD_ID)
 object PersonalRespawnEvents {
+    @JvmStatic
+    @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
+    fun onSpectatorPickup(event: EntityItemPickupEvent) {
+        // Forge 1.20.1 ItemEntity.playerTouch calls onItemPickup before Inventory.add,
+        // without a spectator check; Result.ALLOW even bypasses inventory insertion.
+        // Cancel at the last priority so another pickup handler cannot authorize it first.
+        if (!event.entity.level().isClientSide && event.entity.isSpectator) event.isCanceled = true
+    }
+
     @JvmStatic
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     fun onLivingDeath(event: LivingDeathEvent) {
@@ -63,6 +73,7 @@ object PersonalRespawnEvents {
         RespawnTaskScheduler.tick(event.server)
         if (event.server.tickCount % 20 == 0) {
             OnboardingVisibilitySync.sync(event.server)
+            RecoveryRecordData.get(event.server).retireEmpty(event.server)
         }
     }
 

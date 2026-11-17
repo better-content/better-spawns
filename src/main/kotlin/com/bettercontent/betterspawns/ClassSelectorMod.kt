@@ -24,6 +24,9 @@ import net.minecraftforge.network.PacketDistributor
 class ClassSelectorMod {
     init {
         RespawnMarker.register(FMLJavaModLoadingContext.get().modEventBus)
+        com.bettercontent.betterspawns.respawn.RecoveryCache.register(FMLJavaModLoadingContext.get().modEventBus)
+        if (com.bettercontent.betterspawns.integration.DoorBridgeAvailability.available())
+            com.bettercontent.betterspawns.respawn.DeathScoutIntegration.register()
         ClassSelectorNetwork.register()
     }
 

@@ -108,6 +108,11 @@ dependencies {
     runtimeOnly(fg.deobf("top.theillusivec4.curios:curios-forge:${property("curios_version")}"))
     compileOnly(files(betterContentJar("better-world-management", "better-world-management-0.1.0.jar")))
     compileOnly(files(betterContentJar("better-gameplay-notices", "better-gameplay-notices-1.0.1.jar")))
+    // Paired Door API; classes override permits compilation without packaging a runtime JAR.
+    val doorClasses = providers.gradleProperty("bcDeathsDoorClasses").orNull
+    compileOnly(files(if (doorClasses == null)
+        betterContentJar("better-deaths-door", "better-deaths-door-1.0.0.jar")
+    else file(doorClasses).also { require(it.isDirectory) { "bcDeathsDoorClasses must name compiled Door classes" } }))
     runtimeOnly(deobf("com.simibubi.create:create-${property("minecraft_version")}:${property("create_version")}:slim"))
     runtimeOnly(deobf("net.createmod.ponder:Ponder-Forge-${property("minecraft_version")}:${property("ponder_version")}"))
     runtimeOnly(deobf("dev.engine-room.flywheel:flywheel-forge-${property("minecraft_version")}:${property("flywheel_version")}"))

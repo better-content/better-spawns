@@ -26,6 +26,17 @@ class ProgressionSelectionTest {
     )
 
     @Test
+    fun missingWorldManagementFallsBackToSpawnOnlyWithoutKitsOrEmbark() {
+        val data = SelectionDataRepository.spawnOnlyFallback(configured)
+
+        assertEquals(SelectionMode.NONE, data.mode)
+        assertEquals(SelectionMode.NONE, data.embarkSettings.mode)
+        assertTrue(data.kits.isEmpty())
+        assertFalse(data.starterSchematicannon)
+        assertEquals(configured.items, data.embarkSettings.items)
+    }
+
+    @Test
     fun firstGenerationRemainsSpawnOnly() {
         val data = resolve(SelectionMode.NONE)
 

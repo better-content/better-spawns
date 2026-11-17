@@ -57,3 +57,10 @@ Class selection mod with JSON-defined starter kits, spectator gating for new pla
     versionRange="[0.1.0,0.2)"
     ordering="AFTER"
     side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="better_deaths_door"
+    mandatory=false
+    versionRange="[1.0.0,)"
+    ordering="AFTER"
+    side="BOTH"
