@@ -2,6 +2,7 @@ package com.bettercontent.betterspawns.client
 
 import com.bettercontent.betterspawns.ClassSelectorMod
 import com.bettercontent.betterspawns.embark.SelectionMode
+import com.bettercontent.betterspawns.integration.DoorBridgeAvailability
 import com.bettercontent.gameplaynotices.GameplayNotice
 import com.bettercontent.gameplaynotices.NoticeReminder
 import com.bettercontent.gameplaynotices.NoticeTheme
@@ -44,8 +45,11 @@ object ClientForgeEvents {
         if (event.phase != TickEvent.Phase.END) return
         val mc = Minecraft.getInstance()
         val player = mc.player
+        if (DoorBridgeAvailability.clientAvailable()) ScoutDeathClient.register()
 
         if (player == null) {
+            if (DoorBridgeAvailability.clientAvailable()) ScoutDeathClient.disconnected()
+            ScoutTargets.clear()
             OnboardingPlayerVisibility.clear(mc)
             ClassSelectionState.reset()
             guidance.clear()
@@ -110,6 +114,7 @@ object ClientForgeEvents {
     fun onRenderGui(event: RenderGuiEvent.Post) {
         val mc = Minecraft.getInstance()
         if (mc.options.hideGui || mc.player == null || mc.screen != null) return
+        ScoutTargets.draw(mc, event.guiGraphics, event.window.guiScaledWidth, event.window.guiScaledHeight)
         val notice = ClassSelectionState.noticeText?.let { Component.literal(it) } ?: return
         val font = mc.font
         val maxWidth = (event.window.guiScaledWidth - 24).coerceIn(1, 320)

@@ -1,5 +1,7 @@
 {
   "block.better_spawns.respawn_marker": "Respawn Marker",
+  "block.better_spawns.recovery_cache": "Public Recovery Cache",
+  "container.better_spawns.recovery_cache": "Public Recovery Cache",
   "key.better_spawns.open_menu": "Open Better Spawns",
   "key.better_spawns.commit_start": "Commit Starting Site",
   "key.categories.better_spawns": "Better Spawns",

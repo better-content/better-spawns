@@ -5,6 +5,7 @@ import com.bettercontent.betterspawns.kit.ClassKitRepository
 import com.bettercontent.betterworldmanagement.PrestigePerks
 import net.minecraft.server.MinecraftServer
 import net.minecraftforge.fml.ModList
+import org.slf4j.LoggerFactory
 
 data class SelectionData(
     val mode: SelectionMode,
@@ -22,9 +23,6 @@ internal data class ProgressionPolicy(
 
 internal object WorldLifecyclePolicy {
     fun resolve(server: MinecraftServer): ProgressionPolicy {
-        require(ModList.get().isLoaded("better_world_management")) {
-            "Better Spawns progression mode requires better_world_management"
-        }
         val policy = PrestigePerks.activeOnboardingPolicy(server)
         val mode = when (policy.mode()) {
             PrestigePerks.OnboardingMode.SPAWN_ONLY -> SelectionMode.NONE
@@ -41,6 +39,7 @@ internal object WorldLifecyclePolicy {
 }
 
 object SelectionDataRepository {
+    private val logger = LoggerFactory.getLogger(SelectionDataRepository::class.java)
     private val canonicalClassIds = setOf(
         "wayfinder", "field_cook", "rail_scout", "flood_runner", "market_runner", "trail_wrangler"
     )
@@ -50,6 +49,10 @@ object SelectionDataRepository {
 
     fun load(server: MinecraftServer): SelectionData {
         val configured = EmbarkConfigRepository.load()
+        if (configured.mode == SelectionMode.PROGRESSION && !ModList.get().isLoaded("better_world_management")) {
+            logger.warn("Better Spawns progression mode configured without better_world_management; using spawn-only selection")
+            return spawnOnlyFallback(configured).also { cached = it }
+        }
         if (configured.mode != SelectionMode.PROGRESSION) {
             val kits = when (configured.mode) {
                 SelectionMode.CLASS -> ClassKitRepository.load()
@@ -62,6 +65,9 @@ object SelectionDataRepository {
         val allKits = ClassKitRepository.load()
         return resolveProgression(configured, allKits, WorldLifecyclePolicy.resolve(server)).also { cached = it }
     }
+
+    internal fun spawnOnlyFallback(configured: EmbarkSettings): SelectionData =
+        SelectionData(SelectionMode.NONE, emptyList(), configured.copy(mode = SelectionMode.NONE))
 
     internal fun resolveProgression(
         configured: EmbarkSettings,
