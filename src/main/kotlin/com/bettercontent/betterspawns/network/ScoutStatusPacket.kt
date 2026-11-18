@@ -1,6 +1,6 @@
 package com.bettercontent.betterspawns.network
 
-import com.bettercontent.betterspawns.client.ScoutDeathClient
+import com.bettercontent.betterspawns.integration.DoorBridgeAvailability
 import net.minecraft.network.FriendlyByteBuf
 import net.minecraftforge.network.NetworkEvent
 import java.util.UUID
@@ -21,7 +21,7 @@ data class ScoutStatusPacket(val episode: UUID, val available: Boolean, val pend
             buf.readBoolean(), buf.readBoolean(), buf.readUtf(256), buf.readUtf(160))
         fun handle(packet: ScoutStatusPacket, context: Supplier<NetworkEvent.Context>) {
             val ctx = context.get()
-            ctx.enqueueWork { ScoutDeathClient.receive(packet) }
+            ctx.enqueueWork { DoorBridgeAvailability.receiveClient(packet) }
             ctx.packetHandled = true
         }
     }

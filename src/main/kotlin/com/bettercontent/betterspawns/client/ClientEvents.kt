@@ -45,10 +45,10 @@ object ClientForgeEvents {
         if (event.phase != TickEvent.Phase.END) return
         val mc = Minecraft.getInstance()
         val player = mc.player
-        if (DoorBridgeAvailability.clientAvailable()) ScoutDeathClient.register()
+        DoorBridgeAvailability.registerClient()
 
         if (player == null) {
-            if (DoorBridgeAvailability.clientAvailable()) ScoutDeathClient.disconnected()
+            DoorBridgeAvailability.disconnectedClient()
             ScoutTargets.clear()
             OnboardingPlayerVisibility.clear(mc)
             ClassSelectionState.reset()

@@ -1,25 +1,46 @@
 package com.bettercontent.betterspawns.integration
 
+import com.bettercontent.betterspawns.client.TypedDoorClientBridge
+import com.bettercontent.betterspawns.network.ScoutStatusPacket
 import net.minecraftforge.fml.ModList
 
-/** The marker is common-side and safe to probe before touching optional Door client classes. */
+/** No optional provider types in this eagerly loaded common dispatcher. */
 object DoorBridgeAvailability {
     private val common by lazy {
-        ModList.get().isLoaded("better_deaths_door") && runCatching {
-            val marker = Class.forName("com.bettercontent.betterdeathsdoor.api.ScoutBridgeContract",
-                false, DoorBridgeAvailability::class.java.classLoader)
-            marker.getDeclaredMethod("version").invoke(null) == 1
-        }.getOrDefault(false)
+        ModList.get().isLoaded("better_deaths_door") && try {
+            TypedDoorBridge.compatible()
+        } catch (_: LinkageError) {
+            false // Older Door or missing common contract: leave native deaths unchanged.
+        }
     }
     fun available() = common
 
-    /** Called exclusively from Dist.CLIENT, never a dedicated-server initialization path. */
+    /** These methods are only called from Dist.CLIENT; never from common initialization. */
     private val client by lazy {
-        available() && runCatching {
-            Class.forName("com.bettercontent.betterdeathsdoor.client.ScoutDeathAction", false,
-                DoorBridgeAvailability::class.java.classLoader)
-            true
-        }.getOrDefault(false)
+        available() && try {
+            TypedDoorClientBridge.compatible()
+        } catch (_: LinkageError) {
+            false
+        }
     }
-    fun clientAvailable() = client
+    @Volatile private var clientFailed = false
+    fun clientAvailable(): Boolean = client && !clientFailed
+
+    fun registerClient() {
+        if (!clientAvailable()) return
+        try {
+            TypedDoorClientBridge.register()
+        } catch (_: LinkageError) {
+            // An older client API must not leave a tick loop repeatedly trying to register.
+            clientFailed = true
+        }
+    }
+
+    fun disconnectedClient() {
+        if (clientAvailable()) TypedDoorClientBridge.disconnected()
+    }
+
+    fun receiveClient(packet: ScoutStatusPacket) {
+        if (clientAvailable()) TypedDoorClientBridge.receive(packet)
+    }
 }
