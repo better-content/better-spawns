@@ -6,6 +6,10 @@ import com.bettercontent.betterspawns.integration.OnboardingIntegration
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.core.NonNullList
+import net.minecraft.core.registries.Registries
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.resources.ResourceKey
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.item.ItemStack
@@ -28,6 +32,7 @@ object RecoveryCustody {
     const val FINAL_TICK = "better_spawns:final_tick"
     const val FAILED = "better_spawns:scout_custody_failed"
     const val LAST_ATTEMPT = "better_spawns:scout_last_attempt"
+    const val SCOUT_ORIGIN = "better_spawns:scout_origin"
 
     private val log = LogUtils.getLogger()
     private data class Source(val label: String, val stack: ItemStack, val read: () -> ItemStack,
@@ -49,8 +54,20 @@ object RecoveryCustody {
         tag.putInt(DEATH_Y, player.blockY)
         tag.putInt(DEATH_Z, player.blockZ)
         tag.putLong(FINAL_TICK, player.server.overworld().gameTime)
+        val previous = PersonalRespawnService.getRespawnPoint(player) ?: return
+        tag.put(SCOUT_ORIGIN, CompoundTag().apply {
+            putString("dimension", previous.dim)
+            putInt("x", previous.x); putInt("y", previous.y); putInt("z", previous.z)
+        })
         tag.remove(RECOVERY); tag.remove(LOCATION); tag.remove(REQUESTED); tag.remove(READY)
         tag.remove(FAILED); tag.remove(LAST_ATTEMPT)
+    }
+
+    fun previousSpawn(player: ServerPlayer): PersonalRespawnPoint? {
+        val tag = player.persistentData.getCompound(SCOUT_ORIGIN)
+        if (!tag.contains("dimension", 8) || !tag.contains("x", 3) ||
+            !tag.contains("y", 3) || !tag.contains("z", 3)) return null
+        return PersonalRespawnPoint(tag.getString("dimension"), tag.getInt("x"), tag.getInt("y"), tag.getInt("z"))
     }
 
     fun nativeDeathSettled(player: ServerPlayer): Boolean =
@@ -63,24 +80,30 @@ object RecoveryCustody {
         if (!eligible(player) || !player.isDeadOrDying || !nativeDeathSettled(player) ||
             tag.getBoolean(FAILED) ||
             tag.getString(DEATH_DIM) != player.serverLevel().dimension().location().toString()) return null
+        val previous = previousSpawn(player) ?: return null
+        val dim = ResourceLocation.tryParse(previous.dim) ?: return null
+        val level = player.server.getLevel(ResourceKey.create(Registries.DIMENSION, dim)) ?: return null
+        val origin = BlockPos(previous.x, previous.y, previous.z)
+        if (!level.isInWorldBounds(origin) || !level.isInWorldBounds(origin.above())) return null
         val data = RecoveryRecordData.get(player.server)
         if (tag.getBoolean(READY)) {
             val record = if (tag.hasUUID(RECOVERY)) data.records[tag.getUUID(RECOVERY)] else null
             if (tag.hasUUID(RECOVERY) && record == null && tag.getUUID(RECOVERY) !in data.emptied) return null
-            if (record != null && !repairShells(player.serverLevel(), record)) return null
+            if (record != null && !repairShells(level, record)) return null
             return Result(record) // idempotent retry; never collect player slots again
         }
         val allSlots = gatherInventorySlots(player)
         val sourceIndices = allSlots.indices.filter { !allSlots[it].stack.isEmpty }
         val sources = sourceIndices.map(allSlots::get)
         if (sources.isEmpty()) { tag.putBoolean(READY, true); return Result(null) }
-        val level = player.serverLevel()
-        val origin = BlockPos(tag.getInt(DEATH_X), tag.getInt(DEATH_Y), tag.getInt(DEATH_Z))
+        // Load only the old spawn's chunk. Other pages may use already-loaded neighbors;
+        // if no safe site exists, leave the retained inventory untouched and allow Respawn.
+        level.getChunkAt(origin)
         val places = findPlaces(level, origin, (sources.size + 53) / 54) ?: return null
         val id = UUID.randomUUID()
         // Pages begin empty: never put still-held player items in authoritative SavedData.
         val inventoryPages = List(places.size) { NonNullList.withSize(54, ItemStack.EMPTY) }
-        val record = RecoveryRecordData.Record(id, player.uuid, tag.getString(DEATH_DIM), places, inventoryPages)
+        val record = RecoveryRecordData.Record(id, player.uuid, previous.dim, places, inventoryPages)
         val created = mutableListOf<BlockPos>()
         try {
             data.keep(record)
@@ -225,7 +248,8 @@ object RecoveryCustody {
         }
         if (ModList.get().isLoaded("curios")) {
             val curios = CuriosApi.getCuriosInventory(player).resolve().orElse(null)
-            curios?.curios?.forEach { (identifier, handler) ->
+                ?: error("Curios inventory unavailable; Scout cannot verify retained items")
+            curios.curios.forEach { (identifier, handler) ->
                 listOf("equipped" to handler.stacks, "cosmetic" to handler.cosmeticStacks).forEach { (kind, slots) ->
                     for (slot in 0 until slots.slots) {
                         val original = slots.getStackInSlot(slot)
@@ -254,7 +278,9 @@ object RecoveryCustody {
             }
         }
         for (radius in 0..4) for (dx in -radius..radius) for (dz in -radius..radius) {
-            if (maxOf(abs(dx), abs(dz)) != radius) continue
+            if (maxOf(abs(dx), abs(dz)) != radius || radius == 0) continue
+            // Do not put a cache in the old spawn's feet/head space: native respawn
+            // site preparation could otherwise clear the recovery shell.
             val x = origin.x + dx; val z = origin.z + dz
             for (y in heights) {
                 val feet = BlockPos(x, y, z)

@@ -56,6 +56,9 @@ object DeathScoutIntegration {
             next.persistentData.putBoolean(RecoveryCustody.REQUESTED, true)
             val location = old.persistentData.getString(RecoveryCustody.LOCATION)
             if (location.isNotEmpty()) next.persistentData.putString(RecoveryCustody.LOCATION, location)
+            if (old.persistentData.contains(RecoveryCustody.SCOUT_ORIGIN, 10))
+                next.persistentData.put(RecoveryCustody.SCOUT_ORIGIN,
+                    old.persistentData.getCompound(RecoveryCustody.SCOUT_ORIGIN).copy())
         }
         // Ordinary respawn gets no old episode, death coordinates or custody flag.
     }
@@ -68,8 +71,17 @@ object DeathScoutIntegration {
 
     private fun beginScout(player: ServerPlayer) {
         // PersonalRespawnService remains the sole authority for committing the new spawn.
-        PersonalRespawnService.beginSpawnReselection(player)
+        val previous = RecoveryCustody.previousSpawn(player)
+        if (previous == null || !PersonalRespawnService.beginSpawnReselection(player, previous)) {
+            // Do not clear the personal respawn if the pending transition lost its origin.
+            player.persistentData.remove(RecoveryCustody.REQUESTED)
+            val location = player.persistentData.getString(RecoveryCustody.LOCATION)
+            player.sendSystemMessage(Component.literal(
+                "Scout could not start; normal Respawn remains active. Recovery cache: $location"))
+            return
+        }
         player.persistentData.remove(RecoveryCustody.REQUESTED)
+        player.persistentData.remove(RecoveryCustody.SCOUT_ORIGIN)
         ClassSelectorNetwork.CHANNEL.send(PacketDistributor.PLAYER.with { player }, RequestOpenMenuPacket(true))
         val location = player.persistentData.getString(RecoveryCustody.LOCATION)
         if (location.isNotEmpty()) player.sendSystemMessage(Component.literal("Public recovery cache: $location"))
@@ -78,7 +90,8 @@ object DeathScoutIntegration {
 
     private fun sendEligibility(player: ServerPlayer) {
         if (!RevivalManager.isFinalized(player) || !RecoveryCustody.eligible(player) ||
-            !player.isDeadOrDying || !RecoveryCustody.nativeDeathSettled(player)) return
+            !player.isDeadOrDying || !RecoveryCustody.nativeDeathSettled(player) ||
+            RecoveryCustody.previousSpawn(player) == null) return
         val tag = player.persistentData
         if (tag.getBoolean(RecoveryCustody.REQUESTED) || tag.getBoolean(RecoveryCustody.FAILED)) return
         val recovery = RecoveryRecordData.get(player.server)
@@ -94,6 +107,7 @@ object DeathScoutIntegration {
         val tag = player.persistentData
         if (!RevivalManager.isFinalized(player) || !player.isDeadOrDying ||
             !RecoveryCustody.eligible(player) || !RecoveryCustody.nativeDeathSettled(player) ||
+            RecoveryCustody.previousSpawn(player) == null ||
             !tag.hasUUID(RecoveryCustody.EPISODE) || tag.getUUID(RecoveryCustody.EPISODE) != episode) {
             reject(player, episode, "Scout request expired; normal Respawn remains available.", false)
             return

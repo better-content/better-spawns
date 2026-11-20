@@ -9,6 +9,8 @@ import com.bettercontent.betterspawns.kit.KitApplicator
 import com.bettercontent.betterspawns.kit.KitSlot
 import com.bettercontent.betterspawns.respawn.PersonalRespawnPoint
 import com.bettercontent.betterspawns.respawn.PersonalRespawnService
+import com.bettercontent.betterspawns.respawn.RecoveryCustody
+import com.bettercontent.betterspawns.respawn.RecoveryRecordData
 import com.bettercontent.betterspawns.respawn.RespawnMarker
 import com.mojang.authlib.GameProfile
 import net.minecraft.core.BlockPos
@@ -17,6 +19,8 @@ import net.minecraft.gametest.framework.GameTestAssertException
 import net.minecraft.gametest.framework.GameTestHelper
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.chunk.LevelChunk
 import net.minecraftforge.common.MinecraftForge
@@ -32,6 +36,67 @@ object BetterSpawnsGameTests {
         helper.level,
         GameProfile(UUID.randomUUID(), "better-spawns-test")
     )
+
+    @JvmStatic
+    @GameTest(template = "empty")
+    fun deathScoutStoresRetainedGearAtPreviousSpawn(helper: GameTestHelper) {
+        val player = testPlayer(helper)
+        val previousFeet = BlockPos(3, 2, 3)
+        val previous = helper.absolutePos(previousFeet)
+        helper.setBlock(previousFeet.below(), Blocks.STONE)
+        PersonalRespawnService.setRespawnPoint(player, PersonalRespawnPoint(
+            helper.level.dimension().location().toString(), previous.x, previous.y, previous.z))
+        player.persistentData.putBoolean(OnboardingIntegration.ONBOARDING_COMPLETE_TAG, true)
+        player.inventory.setItem(0, ItemStack(Items.DIAMOND, 17))
+        player.inventory.armor[2] = ItemStack(Items.IRON_CHESTPLATE)
+        player.inventory.offhand[0] = ItemStack(Items.SHIELD)
+        player.health = 0f
+        RecoveryCustody.beginEpisode(player)
+        player.persistentData.putLong(RecoveryCustody.FINAL_TICK, helper.level.server.overworld().gameTime - 21)
+        val result = RecoveryCustody.secureForScout(player)
+        val record = result?.record
+        helper.assertTrue(record != null, "Retained gear must be stored before Scout can begin")
+        if (record != null) {
+            helper.assertTrue(record.dimension == helper.level.dimension().location().toString(),
+                "Recovery cache must be in the old spawn dimension")
+            helper.assertTrue(record.pages.first() != previous &&
+                kotlin.math.abs(record.pages.first().x - previous.x) <= 4 &&
+                kotlin.math.abs(record.pages.first().z - previous.z) <= 4,
+                "Cache must be near, not inside, the old spawn")
+            val stored = record.inventories.flatten()
+            helper.assertTrue(stored.any { it.`is`(Items.DIAMOND) && it.count == 17 } &&
+                stored.any { it.`is`(Items.IRON_CHESTPLATE) } && stored.any { it.`is`(Items.SHIELD) },
+                "Main inventory, armor and offhand must all be credited to the cache")
+            helper.assertTrue(player.inventory.getItem(0).isEmpty &&
+                player.inventory.armor[2].isEmpty && player.inventory.offhand[0].isEmpty,
+                "Retained gear must be removed from Scout")
+            helper.assertTrue(RecoveryRecordData.get(helper.level.server).records[record.id] === record,
+                "Recovery record must remain authoritative")
+            helper.assertTrue(RecoveryCustody.secureForScout(player)?.record === record,
+                "Retry must not transfer the same gear a second time")
+        }
+        helper.succeed()
+    }
+
+    @JvmStatic
+    @GameTest(template = "empty")
+    fun deathScoutFailsClosedIfPreviousSpawnCannotBeResolved(helper: GameTestHelper) {
+        val player = testPlayer(helper)
+        val previousFeet = BlockPos(3, 2, 3)
+        val previous = helper.absolutePos(previousFeet)
+        helper.setBlock(previousFeet.below(), Blocks.STONE)
+        PersonalRespawnService.setRespawnPoint(player, PersonalRespawnPoint(
+            helper.level.dimension().location().toString(), previous.x, previous.y, previous.z))
+        player.persistentData.putBoolean(OnboardingIntegration.ONBOARDING_COMPLETE_TAG, true)
+        player.inventory.setItem(0, ItemStack(Items.DIAMOND, 17))
+        player.health = 0f
+        RecoveryCustody.beginEpisode(player)
+        player.persistentData.getCompound(RecoveryCustody.SCOUT_ORIGIN).putString("dimension", "missing:dimension")
+        player.persistentData.putLong(RecoveryCustody.FINAL_TICK, helper.level.server.overworld().gameTime - 21)
+        helper.assertTrue(RecoveryCustody.secureForScout(player) == null, "Scout must refuse an unavailable old spawn")
+        helper.assertTrue(player.inventory.getItem(0).count == 17, "Failed Scout must retain all gear")
+        helper.succeed()
+    }
 
     private class FinalizationProbe {
         var count: Int = 0

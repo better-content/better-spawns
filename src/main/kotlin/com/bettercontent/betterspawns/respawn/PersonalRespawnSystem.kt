@@ -116,13 +116,23 @@ object PersonalRespawnService {
 
     fun isReselectingSpawn(player: ServerPlayer): Boolean = player.persistentData.getBoolean(RESELECT_SPAWN_TAG)
 
-    fun beginSpawnReselection(player: ServerPlayer) {
+    fun beginSpawnReselection(player: ServerPlayer, previousSpawn: PersonalRespawnPoint? = null): Boolean {
+        // Death Scout uses the predeath personal spawn; admin reset keeps the original
+        // shared-spawn entry. Resolve the destination before clearing the saved spawn.
+        val destination = previousSpawn?.let { resolveLevel(player.server, it.dim) }
+        if (previousSpawn != null && destination == null) return false
         clearRespawnPoint(player)
         player.persistentData.putBoolean(RESELECT_SPAWN_TAG, true)
         player.setGameMode(GameType.SPECTATOR)
-        val overworld = player.server.overworld()
-        val spawn = overworld.sharedSpawnPos
-        player.teleportTo(overworld, spawn.x + 0.5, spawn.y + 1.0, spawn.z + 0.5, player.yRot, player.xRot)
+        if (previousSpawn != null && destination != null) {
+            player.teleportTo(destination, previousSpawn.x + 0.5, previousSpawn.y.toDouble(),
+                previousSpawn.z + 0.5, player.yRot, player.xRot)
+        } else {
+            val overworld = player.server.overworld()
+            val spawn = overworld.sharedSpawnPos
+            player.teleportTo(overworld, spawn.x + 0.5, spawn.y + 1.0, spawn.z + 0.5, player.yRot, player.xRot)
+        }
+        return true
     }
 
     fun completeSpawnReselection(player: ServerPlayer, approved: PreparedRespawnPoint): PreparedRespawnPoint {
